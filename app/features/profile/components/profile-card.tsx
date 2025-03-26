@@ -4,16 +4,17 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { UserProfile } from '../types';
 
 interface ProfileCardProps {
-  user: UserProfile;
+  profile: UserProfile | null;
+  user: any; // Auth user
   onEditProfile?: () => void;
   onChangePhoto?: () => void;
 }
 
-export function ProfileCard({ user, onEditProfile, onChangePhoto }: ProfileCardProps) {
-  const joinDate = new Date(user.created_at).toLocaleDateString('en-US', {
+export function ProfileCard({ profile, user, onEditProfile, onChangePhoto }: ProfileCardProps) {
+  const joinDate = profile?.created_at ? new Date(profile.created_at).toLocaleDateString('en-US', {
     month: 'long',
     year: 'numeric'
-  });
+  }) : 'Unknown';
 
   return (
     <Animated.View 
@@ -23,7 +24,7 @@ export function ProfileCard({ user, onEditProfile, onChangePhoto }: ProfileCardP
       <View style={styles.profileImageContainer}>
         <Image 
           source={{ 
-            uri: user.avatar_url || 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?q=80&w=200&auto=format&fit=crop'
+            uri: profile?.avatar_url || 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?q=80&w=200&auto=format&fit=crop'
           }} 
           style={styles.profileImage} 
         />
@@ -34,8 +35,8 @@ export function ProfileCard({ user, onEditProfile, onChangePhoto }: ProfileCardP
         </TouchableOpacity>
       </View>
       <View style={styles.profileInfo}>
-        <Text style={styles.profileName}>{user.name || 'Anonymous'}</Text>
-        <Text style={styles.profileEmail}>{user.email}</Text>
+        <Text style={styles.profileName}>{profile?.name || user?.email?.split('@')[0] || 'Anonymous'}</Text>
+        <Text style={styles.profileEmail}>{user?.email || ''}</Text>
         <Text style={styles.memberSince}>{`Member since ${joinDate}`}</Text>
         <TouchableOpacity style={styles.editProfileButton} onPress={onEditProfile}>
           <Text>

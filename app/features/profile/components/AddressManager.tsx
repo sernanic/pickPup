@@ -290,6 +290,7 @@ export function AddressManager({
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.listContainer}
             showsVerticalScrollIndicator={false}
+            scrollEnabled={false}
           />
           
           {showAddButton && (

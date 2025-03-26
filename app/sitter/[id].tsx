@@ -1,28 +1,28 @@
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, FlatList, Dimensions, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, FlatList, Dimensions, ActivityIndicator, TextInput, Modal } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 // Import types from the app's type definitions
 import type { Sitter } from '../features/home/types';
-import { Star, MapPin, Calendar, Shield, ChevronLeft } from 'lucide-react-native';
+import { Star, MapPin, Calendar, Shield, ChevronLeft, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import TabBar from '../components/TabBar';
+import { useAuthStore } from '../../stores/authStore';
 
 const { width } = Dimensions.get('window');
 
-// Sample review data - in real app, fetch this from API
-const reviews = [
-  {
-    id: '1',
-    user: 'John D.',
-    rating: 5,
-    date: '2024-02-15',
-    comment: 'Amazing experience! My dog loved staying here.',
-    userImage: 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=100',
-  },
-  // ... more reviews
-];
+// Review type definition
+type Review = {
+  id: string;
+  reviewer_id: string;
+  sitter_id: string;
+  rating: number;
+  comment: string;
+  created_at: string;
+  reviewer_name?: string;
+  reviewer_avatar?: string;
+};
 
 // Sample gallery images - in real app, fetch from API
 const galleryImages: { id: string; type: string; url: string }[] = [
@@ -57,6 +57,13 @@ export default function SitterProfileScreen() {
   const [sitterAddress, setSitterAddress] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [averageRating, setAverageRating] = useState<number>(0);
+  const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  const [reviewText, setReviewText] = useState('');
+  const [selectedRating, setSelectedRating] = useState(0);
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const { user } = useAuthStore();
   
   useEffect(() => {
     const fetchSitterData = async () => {
@@ -84,6 +91,42 @@ export default function SitterProfileScreen() {
           
         if (addressError && addressError.code !== 'PGRST116') { // Not found is ok
           console.log('Address error:', addressError);
+        }
+        
+        // Fetch reviews
+        const { data: reviewsData, error: reviewsError } = await supabase
+          .from('reviews')
+          .select('*')
+          .eq('sitter_id', params.id)
+          .order('created_at', { ascending: false });
+          
+        if (reviewsError) {
+          console.log('Reviews error:', reviewsError);
+        } else if (reviewsData) {
+          // Fetch reviewer profiles for each review
+          const reviewsWithProfiles = await Promise.all(
+            reviewsData.map(async (review) => {
+              const { data: reviewerData } = await supabase
+                .from('profiles')
+                .select('name, avatar_url')
+                .eq('id', review.reviewer_id)
+                .single();
+                
+              return {
+                ...review,
+                reviewer_name: reviewerData?.name || 'Anonymous',
+                reviewer_avatar: reviewerData?.avatar_url || 'https://via.placeholder.com/100'
+              };
+            })
+          );
+          
+          setReviews(reviewsWithProfiles);
+          
+          // Calculate average rating
+          if (reviewsWithProfiles.length > 0) {
+            const total = reviewsWithProfiles.reduce((sum, review) => sum + review.rating, 0);
+            setAverageRating(parseFloat((total / reviewsWithProfiles.length).toFixed(1)));
+          }
         }
         
         setSitter(sitterData);
@@ -156,8 +199,8 @@ export default function SitterProfileScreen() {
             
             <View style={styles.ratingContainer}>
               <Star size={16} color="#FFD700" fill="#FFD700" />
-              <Text style={styles.ratingText}>4.9</Text>
-              <Text style={styles.reviewsText}>(124 reviews)</Text>
+              <Text style={styles.ratingText}>{averageRating > 0 ? averageRating.toFixed(1) : 'N/A'}</Text>
+              <Text style={styles.reviewsText}>({reviews.length} {reviews.length === 1 ? 'review' : 'reviews'})</Text>
             </View>
 
             <View style={styles.locationContainer}>
@@ -219,28 +262,53 @@ export default function SitterProfileScreen() {
             </View>
           )
         ) : (
-          <FlatList
-            key="reviews-list" /* Unique key for reviews list */
-            data={reviews}
-            numColumns={1} /* Explicitly set to 1 */
-            keyExtractor={(item) => item.id}
-            renderItem={({ item: review }) => (
-              <View style={styles.reviewCard}>
-                <View style={styles.reviewHeader}>
-                  <Image source={{ uri: review.userImage }} style={styles.reviewerImage} />
-                  <View style={styles.reviewInfo}>
-                    <Text style={styles.reviewerName}>{review.user}</Text>
-                    <View style={styles.reviewRating}>
-                      <Star size={14} color="#FFD700" fill="#FFD700" />
-                      <Text style={styles.reviewRatingText}>{review.rating}</Text>
+          <View style={{ flex: 1 }}>
+            {user && user.id !== params.id && (
+              <TouchableOpacity 
+                style={styles.addReviewButton}
+                onPress={() => setReviewModalVisible(true)}
+              >
+                <Text style={styles.addReviewButtonText}>Write a Review</Text>
+              </TouchableOpacity>
+            )}
+            
+            {reviews.length > 0 ? (
+              <FlatList
+                key="reviews-list" /* Unique key for reviews list */
+                data={reviews}
+                numColumns={1} /* Explicitly set to 1 */
+                keyExtractor={(item) => item.id}
+                renderItem={({ item: review }) => (
+                  <View style={styles.reviewCard}>
+                    <View style={styles.reviewHeader}>
+                      <Image source={{ uri: review.reviewer_avatar }} style={styles.reviewerImage} />
+                      <View style={styles.reviewInfo}>
+                        <Text style={styles.reviewerName}>{review.reviewer_name}</Text>
+                        <View style={styles.reviewRating}>
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Star 
+                              key={star} 
+                              size={14} 
+                              color="#FFD700" 
+                              fill={star <= review.rating ? "#FFD700" : "transparent"} 
+                            />
+                          ))}
+                        </View>
+                      </View>
+                      <Text style={styles.reviewDate}>
+                        {new Date(review.created_at).toLocaleDateString()}
+                      </Text>
                     </View>
+                    <Text style={styles.reviewComment}>{review.comment}</Text>
                   </View>
-                  <Text style={styles.reviewDate}>{review.date}</Text>
-                </View>
-                <Text style={styles.reviewComment}>{review.comment}</Text>
+                )}
+              />
+            ) : (
+              <View style={styles.emptyStateContainer}>
+                <Text style={styles.emptyStateText}>No reviews yet</Text>
               </View>
             )}
-          />
+          </View>
         )}
       </View>
       
@@ -259,11 +327,199 @@ export default function SitterProfileScreen() {
       <View style={{ height: 60, backgroundColor: 'white', zIndex: 8 }}>
         <TabBar />
       </View>
+      
+      {/* Review Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={reviewModalVisible}
+        onRequestClose={() => setReviewModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Write a Review</Text>
+              <TouchableOpacity onPress={() => setReviewModalVisible(false)}>
+                <X size={24} color="#1A1A1A" />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.ratingSelector}>
+              <Text style={styles.ratingLabel}>Rating:</Text>
+              <View style={styles.starsContainer}>
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <TouchableOpacity 
+                    key={star}
+                    onPress={() => setSelectedRating(star)}
+                  >
+                    <Star 
+                      size={30} 
+                      color="#FFD700" 
+                      fill={star <= selectedRating ? "#FFD700" : "transparent"} 
+                      style={{ marginHorizontal: 5 }}
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+            
+            <TextInput
+              style={styles.reviewInput}
+              placeholder="Share your experience with this sitter..."
+              multiline
+              numberOfLines={4}
+              value={reviewText}
+              onChangeText={setReviewText}
+            />
+            
+            <TouchableOpacity 
+              style={[styles.submitButton, (!selectedRating || submittingReview) && styles.disabledButton]}
+              disabled={!selectedRating || submittingReview}
+              onPress={async () => {
+                if (!user?.id || !selectedRating) return;
+                
+                try {
+                  setSubmittingReview(true);
+                  
+                  const { data, error } = await supabase
+                    .from('reviews')
+                    .insert([
+                      {
+                        sitter_id: params.id,
+                        reviewer_id: user.id,
+                        rating: selectedRating,
+                        comment: reviewText.trim()
+                      }
+                    ])
+                    .select()
+                    .single();
+                    
+                  if (error) throw error;
+                  
+                  // Get reviewer profile
+                  const { data: reviewerData } = await supabase
+                    .from('profiles')
+                    .select('name, avatar_url')
+                    .eq('id', user.id)
+                    .single();
+                  
+                  // Add the new review to the list
+                  const newReview = {
+                    ...data,
+                    reviewer_name: reviewerData?.name || 'Anonymous',
+                    reviewer_avatar: reviewerData?.avatar_url || 'https://via.placeholder.com/100'
+                  };
+                  
+                  setReviews([newReview, ...reviews]);
+                  
+                  // Update average rating
+                  const newTotal = reviews.reduce((sum, review) => sum + review.rating, 0) + selectedRating;
+                  const newAverage = parseFloat((newTotal / (reviews.length + 1)).toFixed(1));
+                  setAverageRating(newAverage);
+                  
+                  // Reset form
+                  setReviewText('');
+                  setSelectedRating(0);
+                  setReviewModalVisible(false);
+                } catch (err: any) {
+                  console.error('Error submitting review:', err);
+                  // Use console.error instead of alert for error handling
+                  console.error('Failed to submit review. Please try again.');
+                } finally {
+                  setSubmittingReview(false);
+                }
+              }}
+            >
+              <Text style={styles.submitButtonText}>
+                {submittingReview ? 'Submitting...' : 'Submit Review'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    padding: 20,
+  },
+  modalContent: {
+    width: '100%',
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1A1A1A',
+  },
+  ratingSelector: {
+    marginBottom: 20,
+  },
+  ratingLabel: {
+    fontSize: 16,
+    marginBottom: 10,
+    color: '#1A1A1A',
+  },
+  starsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  reviewInput: {
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    padding: 12,
+    height: 120,
+    textAlignVertical: 'top',
+    marginBottom: 20,
+  },
+  submitButton: {
+    backgroundColor: '#63C7B8',
+    borderRadius: 8,
+    padding: 15,
+    alignItems: 'center',
+  },
+  disabledButton: {
+    backgroundColor: '#CCCCCC',
+    opacity: 0.5,
+  },
+  submitButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  addReviewButton: {
+    backgroundColor: '#63C7B8',
+    borderRadius: 8,
+    padding: 12,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  addReviewButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 16,
+  },
   emptyStateContainer: {
     flex: 1,
     justifyContent: 'center',

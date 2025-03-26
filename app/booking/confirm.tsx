@@ -376,14 +376,11 @@ export default function ConfirmBookingScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()} >
           <ChevronLeft size={24} color="#1A1A1A" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Confirm Booking</Text>
-        <View style={{ width: 40 }} /> {/* Placeholder for alignment */}
+        <View style={{ width: 40 }} />
       </View>
 
       <ScrollView style={styles.contentContainer}>

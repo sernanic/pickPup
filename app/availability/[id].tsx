@@ -27,7 +27,7 @@ export default function AvailabilityScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
-  
+
   // Date filter state
   const [isStartDatePickerVisible, setStartDatePickerVisible] = useState(false);
   const [isEndDatePickerVisible, setEndDatePickerVisible] = useState(false);
@@ -38,12 +38,12 @@ export default function AvailabilityScreen() {
   useEffect(() => {
     fetchAvailability();
   }, [params.id]);
-  
+
   // Effect to filter slots when dates or slots change
   useEffect(() => {
     filterSlotsByDate();
   }, [startDate, endDate, walkingSlots, boardingSlots]);
-  
+
   // Debugging the current state whenever it changes
   useEffect(() => {
     console.log('Current state:', {
@@ -58,35 +58,35 @@ export default function AvailabilityScreen() {
 
   const fetchAvailability = async () => {
     if (!params.id) return;
-    
+
     try {
       setLoading(true);
-      
+
       // Fetch weekly availability for walking
       const { data: weeklyAvailability, error: weeklyError } = await supabase
         .from('sitter_weekly_availability')
         .select('*')
         .eq('sitter_id', params.id);
-        
+
       if (weeklyError) throw weeklyError;
-      
+
       // Fetch unavailability dates
       const { data: unavailabilityDates, error: unavailError } = await supabase
         .from('sitter_unavailability')
         .select('*')
         .eq('sitter_id', params.id);
-        
+
       if (unavailError) throw unavailError;
-      
+
       // Fetch existing walking bookings for this sitter
       const { data: existingWalkingBookings, error: walkingBookingsError } = await supabase
         .from('walking_bookings')
         .select('*')
         .eq('sitter_id', params.id)
         .in('status', ['pending', 'confirmed']);
-        
+
       if (walkingBookingsError) throw walkingBookingsError;
-      
+
       // Fetch boarding availability
       const { data: boardingAvailability, error: boardingError } = await supabase
         .from('boarding_availability')
@@ -94,35 +94,35 @@ export default function AvailabilityScreen() {
         .eq('sitter_id', params.id)
         .gte('available_date', new Date().toISOString().split('T')[0])  // Only fetch future dates
         .order('available_date', { ascending: true });
-        
+
       if (boardingError) throw boardingError;
-      
+
       // Fetch existing boarding bookings
       const { data: existingBoardingBookings, error: boardingBookingsError } = await supabase
         .from('boarding_bookings')
         .select('*')
         .eq('sitter_id', params.id)
         .in('status', ['pending', 'confirmed']);
-        
+
       if (boardingBookingsError) throw boardingBookingsError;
-      
+
       // Process walking slots
       const walkingAvailableSlots = generateWalkingSlots(
-        weeklyAvailability, 
-        unavailabilityDates, 
+        weeklyAvailability,
+        unavailabilityDates,
         existingWalkingBookings
       );
       setWalkingSlots(walkingAvailableSlots);
-      
+
       // Process boarding slots
       console.log('Raw boarding availability:', JSON.stringify(boardingAvailability, null, 2));
       const boardingAvailableSlots = generateBoardingSlots(
-        boardingAvailability || [], 
+        boardingAvailability || [],
         existingBoardingBookings || []
       );
       console.log('Generated boarding slots:', boardingAvailableSlots.length);
       setBoardingSlots(boardingAvailableSlots);
-      
+
     } catch (err: any) {
       console.error('Error fetching availability data:', err);
       setError(err.message || 'Failed to load availability data');
@@ -139,45 +139,45 @@ export default function AvailabilityScreen() {
       setFilteredBoardingSlots(boardingSlots);
       return;
     }
-    
+
     const filterByDateRange = (slots: AvailabilitySlot[]) => {
       return slots.filter(slot => {
         // Parse the date string (e.g., "Mar 14, 2025") to a Date object
         const dateParts = slot.date.split(',');
         if (dateParts.length < 2) return true; // Skip invalid dates
-        
+
         const monthDay = dateParts[0].trim().split(' ');
         const year = parseInt(dateParts[1].trim());
         const month = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].indexOf(monthDay[0]);
         const day = parseInt(monthDay[1]);
-        
+
         if (month === -1 || isNaN(day) || isNaN(year)) return true; // Skip invalid dates
-        
+
         const slotDate = new Date(year, month, day);
-        
+
         // If we only have a start date, show slots from that date onwards
         if (startDate && !endDate) {
           return slotDate >= startDate;
         }
-        
+
         // If we only have an end date, show slots up to that date
         if (!startDate && endDate) {
           return slotDate <= endDate;
         }
-        
+
         // If we have both dates, show slots within the range
         if (startDate && endDate) {
           return slotDate >= startDate && slotDate <= endDate;
         }
-        
+
         return true;
       });
     };
-    
+
     setFilteredWalkingSlots(filterByDateRange(walkingSlots));
     setFilteredBoardingSlots(filterByDateRange(boardingSlots));
   };
-  
+
   // Clear date filters
   const clearDateFilters = () => {
     setStartDate(null);
@@ -185,7 +185,7 @@ export default function AvailabilityScreen() {
     setFilteredWalkingSlots(walkingSlots);
     setFilteredBoardingSlots(boardingSlots);
   };
-  
+
   // Format date for display
   const formatDateForDisplay = (date: Date | null): string => {
     if (!date) return 'Select';
@@ -195,15 +195,15 @@ export default function AvailabilityScreen() {
   const generateWalkingSlots = (weeklyAvailability: any[], unavailabilityDates: any[], existingBookings: any[] = []): AvailabilitySlot[] => {
     // Create a set of unavailable dates for quick lookup
     const unavailableDatesSet = new Set(
-      unavailabilityDates.map(item => 
+      unavailabilityDates.map(item =>
         new Date(item.unavailable_date).toDateString()
       )
     );
-    
+
     // Create a map of existing bookings for quick lookup
     // Map structure: date string -> array of bookings for that date
     const bookingsByDate = new Map();
-    
+
     existingBookings.forEach(booking => {
       const bookingDate = new Date(booking.booking_date).toDateString();
       if (!bookingsByDate.has(bookingDate)) {
@@ -211,85 +211,85 @@ export default function AvailabilityScreen() {
       }
       bookingsByDate.get(bookingDate).push(booking);
     });
-    
+
     // Helper function to check if a time slot overlaps with any existing booking
     const isTimeSlotOverlapping = (date: Date, startTime: string, endTime: string): boolean => {
       const dateString = date.toDateString();
       const bookingsForDate = bookingsByDate.get(dateString) || [];
-      
+
       // Convert times to minutes since midnight for easier comparison
       const slotStart = convertTimeToMinutes(startTime);
       const slotEnd = convertTimeToMinutes(endTime);
-      
+
       // Check for any overlap with existing bookings
       return bookingsForDate.some((booking: any) => {
         const bookingStart = convertTimeToMinutes(booking.start_time);
         const bookingEnd = convertTimeToMinutes(booking.end_time);
-        
+
         // Check if the slots overlap
         // Slots overlap if one starts before the other ends
         return (slotStart < bookingEnd && slotEnd > bookingStart);
       });
     };
-    
+
     // Helper function to convert time string (HH:MM:SS) to minutes since midnight
     const convertTimeToMinutes = (timeString: string): number => {
       const [hours, minutes] = timeString.split(':').map(Number);
       return hours * 60 + minutes;
     };
-    
+
     // Generate dates for the next 2 weeks
     const today = new Date();
     const nextTwoWeeks: Date[] = [];
-    
+
     for (let i = 0; i < 14; i++) {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
       nextTwoWeeks.push(date);
     }
-    
+
     // Map the weekday number from DB to JS Date object (0-6, where 0 is Sunday)
     // DB weekday is 1-7 where 1 is Monday, 7 is Sunday
     const mapWeekday = (dbWeekday: number): number => {
       // Convert from DB format (1-7, Monday-Sunday) to JS Date format (0-6, Sunday-Saturday)
       return dbWeekday === 7 ? 0 : dbWeekday;
     };
-    
+
     // Generate available slots based on weekly availability and unavailable dates
     const availableSlots: AvailabilitySlot[] = [];
-    
+
     nextTwoWeeks.forEach(date => {
       // Skip if date is in unavailable dates
       if (unavailableDatesSet.has(date.toDateString())) {
         return;
       }
-      
+
       // Get day of week (0-6, Sunday-Saturday)
       const jsWeekday = date.getDay();
-      
+
       // Find matching weekly availability (convert DB weekday to JS weekday)
-      const dayAvailability = weeklyAvailability.filter(slot => 
+      const dayAvailability = weeklyAvailability.filter(slot =>
         mapWeekday(slot.weekday) === jsWeekday
       );
-      
+
       // Create slots for each availability window
       dayAvailability.forEach(slot => {
         const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
         const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        
+
         // Format the date string
         const dateString = `${monthNames[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
-        
+
         // Format the time range
         const startTime = slot.start_time;
         const endTime = slot.end_time;
         const formattedTime = `${formatTime(startTime)} - ${formatTime(endTime)}`;
-        
+
         // Skip this slot if it overlaps with an existing booking
         if (isTimeSlotOverlapping(date, startTime, endTime)) {
           return; // Skip this slot
         }
-        
+
         availableSlots.push({
           id: `${date.toISOString()}_${slot.id}`,
           day: dayNames[date.getDay()],
@@ -300,7 +300,7 @@ export default function AvailabilityScreen() {
         });
       });
     });
-    
+
     // Sort by date and time
     return availableSlots.sort((a, b) => {
       const dateA = new Date(a.date + ' ' + a.startTime);
@@ -315,9 +315,9 @@ export default function AvailabilityScreen() {
       console.log('No boarding availability data found');
       return [];
     }
-    
+
     console.log('Boarding availability data:', boardingAvailability);
-    
+
     // Create a map of existing bookings by date
     const bookingsByDate = new Map();
     existingBookings.forEach(booking => {
@@ -327,12 +327,12 @@ export default function AvailabilityScreen() {
       }
       bookingsByDate.get(bookingDateStr).push(booking);
     });
-    
+
     // Default max pets per booking
     const DEFAULT_MAX_PETS = 2;
     // Default price per night
     const DEFAULT_PRICE = '30.00';
-    
+
     // Check if a date is already fully booked
     const isDateBooked = (date: Date): boolean => {
       const dateStr = date.toDateString();
@@ -340,23 +340,23 @@ export default function AvailabilityScreen() {
       // If boarding capacity is exceeded for this date, it's not available
       return bookings.length >= DEFAULT_MAX_PETS;
     };
-    
+
     // Process each available date
     const availableSlots: AvailabilitySlot[] = [];
     boardingAvailability.forEach(slot => {
       const date = new Date(slot.available_date);
-      
+
       // Skip if date is already fully booked
       if (isDateBooked(date)) {
         return;
       }
-      
+
       const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
       const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      
+
       // Format the date string
       const dateString = `${monthNames[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
-      
+
       availableSlots.push({
         id: `boarding_${slot.id}`,
         day: dayNames[date.getDay()],
@@ -366,30 +366,30 @@ export default function AvailabilityScreen() {
         formattedTime: `Overnight Stay - $${DEFAULT_PRICE}/night`
       });
     });
-    
+
     // Sort by date
     return availableSlots.sort((a, b) => {
       // Parse the date strings (e.g., "Mar 14, 2025") to Date objects
       const parseDate = (dateStr: string) => {
         const dateParts = dateStr.split(',');
         if (dateParts.length < 2) return new Date(); // Default date for invalid format
-        
+
         const monthDay = dateParts[0].trim().split(' ');
         const year = parseInt(dateParts[1].trim());
         const month = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].indexOf(monthDay[0]);
         const day = parseInt(monthDay[1]);
-        
+
         if (month === -1 || isNaN(day) || isNaN(year)) return new Date(); // Default date for invalid values
-        
+
         return new Date(year, month, day);
       };
-      
+
       const dateA = parseDate(a.date);
       const dateB = parseDate(b.date);
       return dateA.getTime() - dateB.getTime();
     });
   };
-  
+
   const formatTime = (timeString: string): string => {
     // Convert 24h time to 12h format
     const [hours, minutes] = timeString.split(':');
@@ -418,7 +418,7 @@ export default function AvailabilityScreen() {
       </View>
     );
   }
-  
+
   // Display error message if something went wrong
   if (error) {
     return (
@@ -436,18 +436,18 @@ export default function AvailabilityScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
         >
-<ChevronLeft size={24} color="#1A1A1A" />
+          <ChevronLeft size={24} color="#1A1A1A" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Check Availability</Text>
-        <View style={{ width: 40 }} /> {/* Placeholder for alignment */}
+        <View style={{ width: 40 }} />
       </View>
 
       <View style={styles.tabsContainer}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.tab, activeTab === 'walking' && styles.activeTab]}
           onPress={() => setActiveTab('walking')}
         >
@@ -455,7 +455,7 @@ export default function AvailabilityScreen() {
             Walking
           </Text>
         </TouchableOpacity>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.tab, activeTab === 'boarding' && styles.activeTab]}
           onPress={() => setActiveTab('boarding')}
         >
@@ -468,28 +468,28 @@ export default function AvailabilityScreen() {
       {/* Date Filter UI */}
       <View style={styles.filterContainer}>
         <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilters(!showFilters)}>
-        <Filter size={18} color="#1A1A1A" />
+          <Filter size={18} color="#1A1A1A" />
           <Text style={styles.filterButtonText}>Filter by Date</Text>
         </TouchableOpacity>
-        
+
         {showFilters && (
           <View style={styles.dateFilterContainer}>
             <View style={styles.dateRangeRow}>
               <View style={styles.datePickerButton}>
                 <Text style={styles.datePickerLabel}>From:</Text>
-                <TouchableOpacity 
-                  style={styles.datePickerInput} 
+                <TouchableOpacity
+                  style={styles.datePickerInput}
                   onPress={() => setStartDatePickerVisible(true)}
                 >
                   <Text style={styles.dateText}>{formatDateForDisplay(startDate)}</Text>
                   <Calendar size={16} color="#1A1A1A" />
                 </TouchableOpacity>
               </View>
-              
+
               <View style={styles.datePickerButton}>
                 <Text style={styles.datePickerLabel}>To:</Text>
-                <TouchableOpacity 
-                  style={styles.datePickerInput} 
+                <TouchableOpacity
+                  style={styles.datePickerInput}
                   onPress={() => setEndDatePickerVisible(true)}
                 >
                   <Text style={styles.dateText}>{formatDateForDisplay(endDate)}</Text>
@@ -497,7 +497,7 @@ export default function AvailabilityScreen() {
                 </TouchableOpacity>
               </View>
             </View>
-            
+
             {(startDate || endDate) && (
               <TouchableOpacity style={styles.clearFilterButton} onPress={clearDateFilters}>
                 <X size={16} color="#FF3B30" />
@@ -507,7 +507,7 @@ export default function AvailabilityScreen() {
           </View>
         )}
       </View>
-      
+
       {/* Date Pickers */}
       <DateTimePickerModal
         isVisible={isStartDatePickerVisible}
@@ -519,7 +519,7 @@ export default function AvailabilityScreen() {
         onCancel={() => setStartDatePickerVisible(false)}
         minimumDate={new Date()}
       />
-      
+
       <DateTimePickerModal
         isVisible={isEndDatePickerVisible}
         mode="date"
@@ -530,7 +530,7 @@ export default function AvailabilityScreen() {
         onCancel={() => setEndDatePickerVisible(false)}
         minimumDate={startDate || new Date()}
       />
-      
+
       <ScrollView style={styles.contentContainer}>
         {activeTab === 'walking' ? (
           filteredWalkingSlots.length > 0 ? (
@@ -596,7 +596,7 @@ export default function AvailabilityScreen() {
 
       {selectedSlot && (
         <View style={styles.bookingContainer}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.bookButton}
             onPress={() => {
               // Find the selected slot details
@@ -620,8 +620,7 @@ export default function AvailabilityScreen() {
         </View>
       )}
 
-      {/* Toast message container */}
-      <Toast />
+
     </View>
   );
 }

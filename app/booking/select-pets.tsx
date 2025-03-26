@@ -154,7 +154,7 @@ export default function SelectPetsScreen() {
           <ChevronLeft size={24} color="#1A1A1A" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Select Pets</Text>
-        <View style={{ width: 40 }} /> {/* Placeholder for alignment */}
+        <View style={{ width: 40 }} />
       </View>
 
       <ScrollView style={styles.contentContainer}>
