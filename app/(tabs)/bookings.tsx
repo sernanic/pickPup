@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, Modal, ScrollView } from 'react-native';
+import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Calendar, Clock, MapPin, ChevronRight, Dog, RefreshCw } from 'lucide-react-native';
+import { Calendar, Clock, MapPin, ChevronRight, Dog, RefreshCw, X, Phone, Mail, DollarSign, Star } from 'lucide-react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
@@ -39,6 +40,8 @@ const initialBookings: Booking[] = [
 ];
 
 export default function BookingsScreen() {
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<'upcoming' | 'completed'>('upcoming');
   const [bookings, setBookings] = useState<Booking[]>(initialBookings);
@@ -269,7 +272,13 @@ export default function BookingsScreen() {
             <Animated.View 
               entering={FadeInDown.delay(index * 100).duration(400)}
             >
-              <TouchableOpacity style={styles.bookingCard}>
+              <TouchableOpacity 
+                style={styles.bookingCard}
+                onPress={() => {
+                  setSelectedBooking(item);
+                  setModalVisible(true);
+                }}
+              >
                 <View style={styles.bookingHeader}>
                   <View style={styles.sitterInfo}>
                     <Image 
@@ -371,6 +380,204 @@ export default function BookingsScreen() {
           )}
         </View>
       )}
+      
+      {/* Booking Details Modal */}
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Booking Details</Text>
+              <TouchableOpacity 
+                style={styles.closeButton} 
+                onPress={() => setModalVisible(false)}
+              >
+                <X size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.modalBody}>
+              {selectedBooking && (
+                <>
+                  {/* Status Badge */}
+                  <View style={[styles.modalStatusContainer, 
+                    selectedBooking.status === 'pending' ? styles.pendingBackground : 
+                    selectedBooking.status === 'confirmed' ? styles.upcomingBackground : 
+                    selectedBooking.status === 'completed' ? styles.completedBackground : 
+                    styles.cancelledBackground
+                  ]}>
+                    <Text style={styles.modalStatusText}>
+                      {selectedBooking.status.charAt(0).toUpperCase() + selectedBooking.status.slice(1)}
+                    </Text>
+                  </View>
+                  
+                  {/* Sitter Information */}
+                  <View style={styles.modalSection}>
+                    <Text style={styles.modalSectionTitle}>Sitter</Text>
+                    <View style={styles.modalSitterInfo}>
+                      <Image 
+                        source={{ 
+                          uri: selectedBooking.sitter_image || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(selectedBooking.sitter_name || 'Dog Sitter')
+                        }} 
+                        style={styles.modalSitterImage} 
+                      />
+                      <View style={styles.modalSitterDetails}>
+                        <Text style={styles.modalSitterName}>{selectedBooking.sitter_name}</Text>
+                        <Text style={styles.modalServiceType}>{selectedBooking.service_type}</Text>
+                        <View style={styles.modalSitterActions}>
+                          {/* <TouchableOpacity style={styles.modalContactButton}>
+                            <Phone size={16} color="#63C7B8" />
+                            <Text style={styles.modalContactText}>Call</Text>
+                          </TouchableOpacity> */}
+                          <TouchableOpacity 
+                            style={styles.modalContactButton}
+                            onPress={async () => {
+                              try {
+                                // Check if a message thread exists for this booking
+                                const { data: existingThreads, error: threadError } = await supabase
+                                  .from('message_threads')
+                                  .select('id')
+                                  .eq('booking_id', selectedBooking.id)
+                                  .single();
+                                
+                                if (threadError && threadError.code !== 'PGRST116') {
+                                  console.error('Error checking message thread:', threadError);
+                                  return;
+                                }
+                                
+                                // If thread exists, close modal and navigate to it
+                                if (existingThreads) {
+                                  setModalVisible(false);
+                                  router.push(`/conversation/${existingThreads.id}`);
+                                  return;
+                                }
+                                
+                                // Create a new message thread
+                                const { data: newThread, error: createError } = await supabase
+                                  .from('message_threads')
+                                  .insert({
+                                    booking_id: selectedBooking.id,
+                                    owner_id: user?.id,
+                                    sitter_id: selectedBooking.sitter_id,
+                                    last_message: '',
+                                    last_message_time: new Date().toISOString()
+                                  })
+                                  .select('id')
+                                  .single();
+                                
+                                if (createError) {
+                                  console.error('Error creating message thread:', createError);
+                                  return;
+                                }
+                                
+                                // Close modal and navigate to the new thread
+                                if (newThread) {
+                                  setModalVisible(false);
+                                  router.push(`/conversation/${newThread.id}`);
+                                }
+                              } catch (error) {
+                                console.error('Error with messaging:', error);
+                              }
+                            }}
+                          >
+                            <Mail size={16} color="#63C7B8" />
+                            <Text style={styles.modalContactText}>Message</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    </View>
+                  </View>
+                  
+                  <View style={styles.modalDivider} />
+                  
+                  {/* Booking Information */}
+                  <View style={styles.modalSection}>
+                    <Text style={styles.modalSectionTitle}>Booking Details</Text>
+                    <View style={styles.modalDetailRow}>
+                      <Calendar size={18} color="#8E8E93" />
+                      <Text style={styles.modalDetailText}>
+                        {formatDate(selectedBooking.booking_date)}
+                      </Text>
+                    </View>
+                    <View style={styles.modalDetailRow}>
+                      <Clock size={18} color="#8E8E93" />
+                      <Text style={styles.modalDetailText}>
+                        {selectedBooking.start_time.slice(0, 5)} - {selectedBooking.end_time.slice(0, 5)}
+                      </Text>
+                    </View>
+                    <View style={styles.modalDetailRow}>
+                      <DollarSign size={18} color="#8E8E93" />
+                      <Text style={styles.modalDetailText}>
+                        ${selectedBooking.total_price.toFixed(2)}
+                      </Text>
+                    </View>
+                  </View>
+                  
+                  <View style={styles.modalDivider} />
+                  
+                  {/* Pets Information */}
+                  <View style={styles.modalSection}>
+                    <Text style={styles.modalSectionTitle}>Pets</Text>
+                    {selectedBooking.selected_pets.map((pet) => (
+                      <View key={pet.id} style={styles.modalPetItem}>
+                        <Image 
+                          source={{ 
+                            uri: pet.image_url || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(pet.name)
+                          }} 
+                          style={styles.modalPetImage} 
+                        />
+                        <View style={styles.modalPetDetails}>
+                          <Text style={styles.modalPetName}>{pet.name}</Text>
+                          <Text style={styles.modalPetInfo}>
+                            {pet.breed || 'Mixed breed'}{pet.age ? `, ${pet.age} years` : ''}
+                          </Text>
+                          {pet.weight && (
+                            <Text style={styles.modalPetInfo}>
+                              {pet.weight} lbs
+                            </Text>
+                          )}
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                  
+                  {/* Action Buttons */}
+                  {/* {(selectedBooking.status === 'pending' || selectedBooking.status === 'confirmed') && (
+                    <View style={styles.modalButtonContainer}>
+                      <TouchableOpacity style={styles.modalCancelButton}>
+                        <Text style={styles.modalCancelButtonText}>Cancel Booking</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.modalRescheduleButton}>
+                        <Text style={styles.modalRescheduleButtonText}>Reschedule</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )} */}
+                  
+                  {selectedBooking.status === 'completed' && (
+                    <View style={styles.modalRatingContainer}>
+                      <Text style={styles.modalRatingTitle}>Rate your experience</Text>
+                      <View style={styles.modalStarContainer}>
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <TouchableOpacity key={`star-${star}`}>
+                            <Star size={30} color="#FFD700" fill="#FFD700" />
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                      <TouchableOpacity style={styles.modalSubmitButton}>
+                        <Text style={styles.modalSubmitButtonText}>Submit Review</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -398,6 +605,220 @@ const styles = StyleSheet.create({
   },
   cancelledText: {
     color: '#CF1322',
+  },
+  // Modal styles
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    height: '90%',
+    paddingHorizontal: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F2F2F7',
+  },
+  modalTitle: {
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: 20,
+    color: '#1A1A1A',
+  },
+  closeButton: {
+    padding: 8,
+  },
+  modalBody: {
+    flex: 1,
+  },
+  modalStatusContainer: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    marginVertical: 16,
+  },
+  pendingBackground: {
+    backgroundColor: '#FFF7E6',
+  },
+  upcomingBackground: {
+    backgroundColor: '#E6F7FF',
+  },
+  completedBackground: {
+    backgroundColor: '#F6FFED',
+  },
+  cancelledBackground: {
+    backgroundColor: '#FFF1F0',
+  },
+  modalStatusText: {
+    fontFamily: 'Poppins-Medium',
+    fontSize: 14,
+  },
+  modalSection: {
+    marginBottom: 24,
+  },
+  modalSectionTitle: {
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: 18,
+    marginBottom: 12,
+    color: '#1A1A1A',
+  },
+  modalSitterInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  modalSitterImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginRight: 16,
+  },
+  modalSitterDetails: {
+    flex: 1,
+  },
+  modalSitterName: {
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: 18,
+    color: '#1A1A1A',
+    marginBottom: 4,
+  },
+  modalServiceType: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 14,
+    color: '#8E8E93',
+    marginBottom: 8,
+  },
+  modalSitterActions: {
+    flexDirection: 'row',
+    marginTop: 4,
+  },
+  modalContactButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F2F2F7',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    marginRight: 12,
+  },
+  modalContactText: {
+    fontFamily: 'Poppins-Medium',
+    fontSize: 12,
+    color: '#63C7B8',
+    marginLeft: 4,
+  },
+  modalDivider: {
+    height: 1,
+    backgroundColor: '#F2F2F7',
+    marginVertical: 16,
+  },
+  modalDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  modalDetailText: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 16,
+    color: '#1A1A1A',
+    marginLeft: 12,
+  },
+  modalPetItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9F9F9',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+  },
+  modalPetImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 16,
+  },
+  modalPetDetails: {
+    flex: 1,
+  },
+  modalPetName: {
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: 16,
+    color: '#1A1A1A',
+  },
+  modalPetInfo: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 14,
+    color: '#8E8E93',
+  },
+  modalButtonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginVertical: 16,
+  },
+  modalCancelButton: {
+    backgroundColor: '#FFF1F0',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    flex: 1,
+    marginRight: 12,
+    alignItems: 'center',
+  },
+  modalCancelButtonText: {
+    fontFamily: 'Poppins-Medium',
+    fontSize: 16,
+    color: '#CF1322',
+  },
+  modalRescheduleButton: {
+    backgroundColor: '#F0F7FF',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    flex: 1,
+    marginLeft: 12,
+    alignItems: 'center',
+  },
+  modalRescheduleButtonText: {
+    fontFamily: 'Poppins-Medium',
+    fontSize: 16,
+    color: '#1890FF',
+  },
+  modalRatingContainer: {
+    alignItems: 'center',
+    marginVertical: 16,
+    padding: 16,
+    backgroundColor: '#F9F9F9',
+    borderRadius: 12,
+  },
+  modalRatingTitle: {
+    fontFamily: 'Poppins-Medium',
+    fontSize: 18,
+    color: '#1A1A1A',
+    marginBottom: 16,
+  },
+  modalStarContainer: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  modalSubmitButton: {
+    backgroundColor: '#63C7B8',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+    width: '100%',
+  },
+  modalSubmitButtonText: {
+    fontFamily: 'Poppins-Medium',
+    fontSize: 16,
+    color: '#FFFFFF',
   },
   container: {
     flex: 1,

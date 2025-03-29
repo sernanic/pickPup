@@ -1,30 +1,34 @@
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, ActivityIndicator, Alert, Image, Modal } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { useAuthStore } from '../../stores/authStore';
 import { supabase } from '../../lib/supabase';
 import { UserProfile } from '../features/profile/types';
 import * as ImagePicker from 'expo-image-picker';
 import { decode } from 'base64-arraybuffer';
-import {
-  ProfileHeader,
-  ProfileCard,
-  DogsList,
-  AccountSettings,
-  SupportSection,
-  LogoutButton,
-  AddressManager
+import { 
+  AddressManager,
+  DogsList 
 } from '../features/profile/components';
+import { ChevronRight, Bell, Shield, CreditCard, CircleHelp as HelpCircle, LogOut, MapPin, DogIcon, User, Settings, Camera, X } from 'lucide-react-native';
 
 export default function ProfileScreen() {
-  const insets = useSafeAreaInsets();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [locationEnabled, setLocationEnabled] = useState(true);
   const { user, logout } = useAuthStore();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'account' | 'addresses' | 'pets'>('account');
+  
+  // Navigation functions
+  const navigateToAddressManager = () => {
+    router.push('/(profile)/addresses');
+  };
+  
+  const navigateToPetsManager = () => {
+    router.push('/(profile)/pets');
+  };
 
   useEffect(() => {
     async function loadProfile() {
@@ -136,90 +140,241 @@ export default function ProfileScreen() {
   if (isLoading || uploading) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color="#63C7B8" />
         {uploading && <Text style={styles.loadingText}>Uploading your picture...</Text>}
       </View>
     );
   }
 
   return (
-    <ScrollView 
-      style={styles.container}
-      contentContainerStyle={[
-        styles.contentContainer,
-        { paddingTop: insets.top }
-      ]}
-    >
-      <ProfileHeader 
-        name={profile?.name || user?.email || 'User'} 
-        email={user?.email || ''} 
-        avatarUrl={profile?.avatar_url}
-      />
-
-      <View style={styles.tabContainer}>
-        <Text 
-          style={[styles.tabText, activeTab === 'account' && styles.activeTabText]}
-          onPress={() => setActiveTab('account')}
-        >
-          Account
-        </Text>
-        <Text 
-          style={[styles.tabText, activeTab === 'addresses' && styles.activeTabText]}
-          onPress={() => setActiveTab('addresses')}
-        >
-          Addresses
-        </Text>
-        <Text 
-          style={[styles.tabText, activeTab === 'pets' && styles.activeTabText]}
-          onPress={() => setActiveTab('pets')}
-        >
-          Pets
-        </Text>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>My Profile</Text>
+        <View style={{ width: 24 }} />
       </View>
-
-      {activeTab === 'account' && (
-        <>
-          <ProfileCard 
-            profile={profile} 
-            user={user} 
-            onChangePhoto={handleChangeProfilePicture} 
-          />
-          <AccountSettings 
-            notificationsEnabled={notificationsEnabled}
-            locationEnabled={locationEnabled}
-            onToggleNotifications={() => setNotificationsEnabled(!notificationsEnabled)}
-            onToggleLocation={() => setLocationEnabled(!locationEnabled)}
-          />
-          <SupportSection />
-          <LogoutButton onLogout={logout} />
-        </>
-      )}
-
-      {activeTab === 'addresses' && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Your Addresses</Text>
-          <Text style={styles.sectionDescription}>
-            Manage your addresses for service bookings and pet care.
-          </Text>
-          <AddressManager />
+      
+      <ScrollView style={[styles.scrollView, styles.container]}>
+        {/* Profile Overview Section */}
+        <View style={styles.profileOverview}>
+          <TouchableOpacity 
+            style={styles.profileImageContainer}
+            onPress={handleChangeProfilePicture}
+          >
+            {profile?.avatar_url ? (
+              <>
+                <View style={styles.profileImage}>
+                  <Image 
+                    source={{ uri: profile.avatar_url }} 
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      borderRadius: 40
+                    }} 
+                  />
+                </View>
+                <View style={styles.cameraButton}>
+                  <Camera size={14} color="#FFFFFF" />
+                </View>
+              </>
+            ) : (
+              <>
+                <View style={styles.profileImage}>
+                  <User size={36} color="#63C7B8" />
+                </View>
+                <View style={styles.cameraButton}>
+                  <Camera size={14} color="#FFFFFF" />
+                </View>
+              </>
+            )}
+          </TouchableOpacity>
+          <Text style={styles.profileName}>{profile?.name || user?.email || 'User'}</Text>
+          <Text style={styles.profileEmail}>{user?.email || ''}</Text>
         </View>
-      )}
 
-      {activeTab === 'pets' && (
-        <DogsList pets={profile?.pets || []} />
-      )}
-    </ScrollView>
+        {/* Account Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Account</Text>
+          
+          <TouchableOpacity style={styles.settingItem}>
+            <View style={styles.settingIconContainer}>
+              <User size={20} color="#63C7B8" />
+            </View>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>My Profile</Text>
+              <Text style={styles.settingDescription}>Edit your personal details</Text>
+            </View>
+            <ChevronRight size={20} color="#8E8E93" />
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.settingItem}
+            onPress={navigateToAddressManager}
+          >
+            <View style={styles.settingIconContainer}>
+              <MapPin size={20} color="#63C7B8" />
+            </View>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>Address</Text>
+              <Text style={styles.settingDescription}>
+                {/* Check for primary address in the future */}
+                Add your address
+              </Text>
+            </View>
+            <ChevronRight size={20} color="#8E8E93" />
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.settingItem}
+            onPress={navigateToPetsManager}
+          >
+            <View style={styles.settingIconContainer}>
+              <DogIcon size={20} color="#63C7B8" />
+            </View>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>My Pets</Text>
+              <Text style={styles.settingDescription}>Manage your registered pets</Text>
+            </View>
+            <ChevronRight size={20} color="#8E8E93" />
+          </TouchableOpacity>
+        </View>
+        
+        {/* Preferences Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Preferences</Text>
+          
+          <View style={styles.settingItemWithSwitch}>
+            <View style={styles.settingIconContainer}>
+              <Bell size={20} color="#63C7B8" />
+            </View>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>Notifications</Text>
+              <Text style={styles.settingDescription}>Receive app notifications</Text>
+            </View>
+            <Switch
+              value={notificationsEnabled}
+              onValueChange={() => setNotificationsEnabled(!notificationsEnabled)}
+              trackColor={{ false: '#D1D1D6', true: '#A8DEDA' }}
+              thumbColor={notificationsEnabled ? '#62C6B9' : '#F4F3F4'}
+            />
+          </View>
+
+          <View style={styles.settingItemWithSwitch}>
+            <View style={styles.settingIconContainer}>
+              <MapPin size={20} color="#63C7B8" />
+            </View>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>Location Services</Text>
+              <Text style={styles.settingDescription}>Enable location for better matches</Text>
+            </View>
+            <Switch
+              value={locationEnabled}
+              onValueChange={() => setLocationEnabled(!locationEnabled)}
+              trackColor={{ false: '#D1D1D6', true: '#A8DEDA' }}
+              thumbColor={locationEnabled ? '#62C6B9' : '#F4F3F4'}
+            />
+          </View>
+        </View>
+        
+        {/* Support Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Support</Text>
+          
+          <TouchableOpacity style={styles.settingItem}>
+            <View style={styles.settingIconContainer}>
+              <HelpCircle size={20} color="#63C7B8" />
+            </View>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>Help Center</Text>
+              <Text style={styles.settingDescription}>Get help with the app</Text>
+            </View>
+            <ChevronRight size={20} color="#8E8E93" />
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.settingItem}>
+            <View style={styles.settingIconContainer}>
+              <Shield size={20} color="#63C7B8" />
+            </View>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>Privacy Policy</Text>
+              <Text style={styles.settingDescription}>Read our privacy policy</Text>
+            </View>
+            <ChevronRight size={20} color="#8E8E93" />
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.settingItem}>
+            <View style={styles.settingIconContainer}>
+              <Settings size={20} color="#63C7B8" />
+            </View>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>Terms of Service</Text>
+              <Text style={styles.settingDescription}>Read our terms of service</Text>
+            </View>
+            <ChevronRight size={20} color="#8E8E93" />
+          </TouchableOpacity>
+        </View>
+        
+        <TouchableOpacity 
+          style={styles.logoutButton}
+          onPress={() => {
+            Alert.alert(
+              'Logout',
+              'Are you sure you want to log out?',
+              [
+                {
+                  text: 'Cancel',
+                  style: 'cancel',
+                },
+                {
+                  text: 'Logout',
+                  onPress: logout,
+                  style: 'destructive',
+                },
+              ]
+            );
+          }}
+        >
+          <LogOut size={18} color="#D32F2F" style={{ marginRight: 10 }} />
+          <Text style={styles.logoutText}>Logout</Text>
+        </TouchableOpacity>
+        
+        <View style={styles.versionContainer}>
+          <Text style={styles.versionText}>Version 1.0.0</Text>
+        </View>
+      </ScrollView>
+
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
   container: {
     flex: 1,
-    backgroundColor: '#F7F8FA',
+    backgroundColor: '#F8F9FA',
   },
-  contentContainer: {
-    padding: 16,
-    paddingBottom: 100,
+
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5E5',
+    backgroundColor: '#FFF',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    flex: 1,
+    textAlign: 'center',
+  },
+  scrollView: {
+    flex: 1,
   },
   loadingContainer: {
     justifyContent: 'center',
@@ -230,49 +385,137 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#63C7B8',
   },
-  tabContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
+  profileOverview: {
+    alignItems: 'center',
+    padding: 24,
     backgroundColor: '#FFFFFF',
+    marginBottom: 16,
+  },
+  profileImageContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    marginBottom: 16,
+    position: 'relative',
+  },
+  profileImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#F0F0F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  cameraButton: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#63C7B8',
     borderRadius: 12,
-    marginVertical: 16,
-    padding: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
   },
-  tabText: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#63C7B8',
-  },
-  activeTabText: {
-    color: '#63C7B8',
+  profileName: {
+    fontSize: 20,
     fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  profileEmail: {
+    fontSize: 14,
+    color: '#6B7280',
   },
   section: {
+    marginBottom: 24,
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    marginHorizontal: 16,
+    overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
     elevation: 2,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
-    marginBottom: 8,
+    color: '#333',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
   },
-  sectionDescription: {
+  settingItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  settingIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(99, 199, 184, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  settingItemWithSwitch: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  settingInfo: {
+    flex: 1,
+  },
+  settingLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#333',
+    marginBottom: 4,
+  },
+  settingDescription: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#8E8E93',
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFF',
+    marginHorizontal: 16,
+    marginTop: 8,
     marginBottom: 16,
+    paddingVertical: 16,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  logoutText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#D32F2F',
+  },
+  versionContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  versionText: {
+    fontSize: 14,
+    color: '#8E8E93',
   },
 });

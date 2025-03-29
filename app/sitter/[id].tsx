@@ -24,29 +24,15 @@ type Review = {
   reviewer_avatar?: string;
 };
 
-// Sample gallery images - in real app, fetch from API
-const galleryImages: { id: string; type: string; url: string }[] = [
-  {
-    id: '1',
-    type: 'home',
-    url: 'https://images.unsplash.com/photo-1583608205776-bfd35f0d9f83?w=500',
-  },
-  {
-    id: '2',
-    type: 'dogs',
-    url: 'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=500',
-  },
-  {
-    id: '3',
-    type: 'home',
-    url: 'https://images.unsplash.com/photo-1593696140826-c58b021acf8b?w=500',
-  },
-  {
-    id: '4',
-    type: 'dogs',
-    url: 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=500',
-  },
-];
+// Gallery images type definition
+type PortfolioImage = {
+  id: string;
+  sitter_id: string;
+  image_url: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+};
 
 export default function SitterProfileScreen() {
   const params = useLocalSearchParams();
@@ -59,6 +45,7 @@ export default function SitterProfileScreen() {
   const [error, setError] = useState(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [averageRating, setAverageRating] = useState<number>(0);
+  const [portfolioImages, setPortfolioImages] = useState<PortfolioImage[]>([]);
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
   const [reviewText, setReviewText] = useState('');
   const [selectedRating, setSelectedRating] = useState(0);
@@ -99,6 +86,18 @@ export default function SitterProfileScreen() {
           .select('*')
           .eq('sitter_id', params.id)
           .order('created_at', { ascending: false });
+          
+        // Fetch portfolio images
+        const { data: imageData, error: imageError } = await supabase
+          .from('portfolio_images')
+          .select('*')
+          .eq('sitter_id', params.id);
+          
+        if (imageError) {
+          console.log('Portfolio images error:', imageError);
+        } else if (imageData) {
+          setPortfolioImages(imageData);
+        }
           
         if (reviewsError) {
           console.log('Reviews error:', reviewsError);
@@ -166,7 +165,7 @@ export default function SitterProfileScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 500 }}>
+      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 120 }}>
         <View style={styles.header}>
           <TouchableOpacity 
             style={styles.backButton}
@@ -196,6 +195,14 @@ export default function SitterProfileScreen() {
                 <Text style={styles.verifiedText}>Verified</Text>
               </View>
             </View>
+            
+            <TouchableOpacity 
+              style={styles.availabilityButton}
+              onPress={() => router.push(`/availability/${params.id}`)}
+            >
+              <Calendar size={16} color="#FFFFFF" />
+              <Text style={styles.availabilityButtonText}>Check Availability</Text>
+            </TouchableOpacity>
             
             <View style={styles.ratingContainer}>
               <Star size={16} color="#FFD700" fill="#FFD700" />
@@ -231,97 +238,71 @@ export default function SitterProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Placeholder for content - actual content is rendered outside ScrollView */}
-        <View style={styles.contentPlaceholder} />
-        
-        {/* Increase space between tabs and content */}
-        <View style={{ height: 30 }} />
-        
-        {/* Space for the content area */}
-        <View style={styles.contentPlaceholder} />
-      </ScrollView>
-      
-      {/* Content is rendered separately to avoid VirtualizedList nesting issues */}
-      <View style={styles.contentOverlay}>
-        {activeTab === 'photos' ? (
-          galleryImages.length > 0 ? (
-            <FlatList
-              key="photos-grid" /* Unique key for photos list */
-              data={galleryImages}
-              numColumns={2}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <TouchableOpacity style={styles.galleryItem}>
-                  <Image source={{ uri: item.url }} style={styles.galleryImage} />
-                </TouchableOpacity>
-              )}
-            />
-          ) : (
-            <View style={styles.emptyStateContainer}>
-              <Text style={styles.emptyStateText}>No photos available</Text>
-            </View>
-          )
-        ) : (
-          <View style={{ flex: 1 }}>
-            {user && user.id !== params.id && (
-              <TouchableOpacity 
-                style={styles.addReviewButton}
-                onPress={() => setReviewModalVisible(true)}
-              >
-                <Text style={styles.addReviewButtonText}>Write a Review</Text>
-              </TouchableOpacity>
-            )}
-            
-            {reviews.length > 0 ? (
-              <FlatList
-                key="reviews-list" /* Unique key for reviews list */
-                data={reviews}
-                numColumns={1} /* Explicitly set to 1 */
-                keyExtractor={(item) => item.id}
-                renderItem={({ item: review }) => (
-                  <View style={styles.reviewCard}>
-                    <View style={styles.reviewHeader}>
-                      <Image source={{ uri: review.reviewer_avatar }} style={styles.reviewerImage} />
-                      <View style={styles.reviewInfo}>
-                        <Text style={styles.reviewerName}>{review.reviewer_name}</Text>
-                        <View style={styles.reviewRating}>
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <Star 
-                              key={star} 
-                              size={14} 
-                              color="#FFD700" 
-                              fill={star <= review.rating ? "#FFD700" : "transparent"} 
-                            />
-                          ))}
-                        </View>
-                      </View>
-                      <Text style={styles.reviewDate}>
-                        {new Date(review.created_at).toLocaleDateString()}
-                      </Text>
-                    </View>
-                    <Text style={styles.reviewComment}>{review.comment}</Text>
-                  </View>
-                )}
-              />
+        {/* Content section - directly integrated into ScrollView */}
+        <View style={styles.contentSection}>
+          {activeTab === 'photos' ? (
+            portfolioImages.length > 0 ? (
+              <View style={styles.photosGrid}>
+                {portfolioImages.map(item => (
+                  <TouchableOpacity key={item.id} style={styles.galleryItem}>
+                    <Image source={{ uri: item.image_url }} style={styles.galleryImage} />
+                  </TouchableOpacity>
+                ))}
+              </View>
             ) : (
               <View style={styles.emptyStateContainer}>
-                <Text style={styles.emptyStateText}>No reviews yet</Text>
+                <Text style={styles.emptyStateText}>No photos available</Text>
               </View>
-            )}
-          </View>
-        )}
-      </View>
+            )
+          ) : (
+            <View>
+              {user && user.id !== params.id && (
+                <TouchableOpacity 
+                  style={styles.addReviewButton}
+                  onPress={() => setReviewModalVisible(true)}
+                >
+                  <Text style={styles.addReviewButtonText}>Write a Review</Text>
+                </TouchableOpacity>
+              )}
+              
+              {reviews.length > 0 ? (
+                <View>
+                  {reviews.map(review => (
+                    <View key={review.id} style={styles.reviewCard}>
+                      <View style={styles.reviewHeader}>
+                        <Image source={{ uri: review.reviewer_avatar }} style={styles.reviewerImage} />
+                        <View style={styles.reviewInfo}>
+                          <Text style={styles.reviewerName}>{review.reviewer_name}</Text>
+                          <View style={styles.reviewRating}>
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Star 
+                                key={star} 
+                                size={14} 
+                                color="#FFD700" 
+                                fill={star <= review.rating ? "#FFD700" : "transparent"} 
+                              />
+                            ))}
+                          </View>
+                        </View>
+                        <Text style={styles.reviewDate}>
+                          {new Date(review.created_at).toLocaleDateString()}
+                        </Text>
+                      </View>
+                      <Text style={styles.reviewComment}>{review.comment}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <View style={styles.emptyStateContainer}>
+                  <Text style={styles.emptyStateText}>No reviews yet</Text>
+                </View>
+              )}
+            </View>
+          )}
+        </View>
+      </ScrollView>
       
-      {/* Fixed button at the bottom */}
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity 
-          style={styles.scheduleButton}
-          onPress={() => router.push(`/availability/${params.id}`)}
-        >
-          <Calendar size={20} color="#FFFFFF" />
-          <Text style={styles.scheduleButtonText}>Check Availability</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Removed fixed button since we moved it under the verified badge */}
 
       {/* Add our custom TabBar component */}
       <View style={{ height: 60, backgroundColor: 'white', zIndex: 8 }}>
@@ -531,17 +512,28 @@ const styles = StyleSheet.create({
     color: '#8E8E93',
     textAlign: 'center',
   },
-  contentPlaceholder: {
-    height: 350, // Increased height to add more space
+  contentSection: {
+    paddingHorizontal: 16,
+    marginTop: 20,
+    paddingBottom: 80, // Add padding to ensure content is visible above tab bar
   },
-  contentOverlay: {
-    position: 'absolute',
-    top: 500, // Space after the info card
-    left: 0,
-    right: 0,
-    bottom: 70, // Reduced to ensure tab bar is visible
-    backgroundColor: '#FFFFFF',
-    zIndex: 1,
+  photosGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  galleryItem: {
+    width: (width - 48) / 2, // Two columns with 16px padding on each side and 16px between items
+    height: 160,
+    marginBottom: 16,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#F5F5F5', // Add background color to show while loading
+  },
+  galleryImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
   },
   buttonContainer: {
     position: 'absolute',
@@ -581,6 +573,27 @@ const styles = StyleSheet.create({
   backButtonText: {
     color: '#63C7B8',
     fontSize: 16,
+    fontWeight: '600',
+  },
+  availabilityButton: {
+    backgroundColor: '#63C7B8',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 10,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  availabilityButtonText: {
+    marginLeft: 6,
+    color: 'white',
+    fontSize: 14,
     fontWeight: '600',
   },
   container: {
@@ -716,16 +729,6 @@ const styles = StyleSheet.create({
     flex: 1,
     marginHorizontal: 16,
     marginTop: 16,
-  },
-  galleryItem: {
-    flex: 1,
-    margin: 4,
-    height: 150,
-  },
-  galleryImage: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 8,
   },
   reviewsContainer: {
     marginHorizontal: 16,

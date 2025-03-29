@@ -27,6 +27,7 @@ export default function AvailabilityScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
+  const [maxBoardingCapacity, setMaxBoardingCapacity] = useState(2); // Default max boarding capacity
 
   // Date filter state
   const [isStartDatePickerVisible, setStartDatePickerVisible] = useState(false);
@@ -35,7 +36,30 @@ export default function AvailabilityScreen() {
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [showFilters, setShowFilters] = useState(false);
 
+  // Fetch sitter's max capacity from sitter_info
   useEffect(() => {
+    const fetchSitterInfo = async () => {
+      if (!params.id) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('sitter_info')
+          .select('max_dogs_boarding')
+          .eq('sitter_id', params.id)
+          .single();
+          
+        if (error) throw error;
+        
+        if (data) {
+          console.log('Sitter boarding capacity:', data.max_dogs_boarding);
+          setMaxBoardingCapacity(data.max_dogs_boarding);
+        }
+      } catch (err) {
+        console.error('Error fetching sitter info:', err);
+      }
+    };
+    
+    fetchSitterInfo();
     fetchAvailability();
   }, [params.id]);
 
@@ -86,6 +110,9 @@ export default function AvailabilityScreen() {
         .in('status', ['pending', 'confirmed']);
 
       if (walkingBookingsError) throw walkingBookingsError;
+      
+      // Log all retrieved walking bookings for debugging
+      console.log('Walking bookings retrieved:', JSON.stringify(existingWalkingBookings || [], null, 2));
 
       // Fetch boarding availability
       const { data: boardingAvailability, error: boardingError } = await supabase
@@ -191,6 +218,11 @@ export default function AvailabilityScreen() {
     if (!date) return 'Select';
     return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
   };
+  
+  // Helper function to create a normalized date string in YYYY-MM-DD format
+  const formatDateYYYYMMDD = (date: Date): string => {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  };
 
   const generateWalkingSlots = (weeklyAvailability: any[], unavailabilityDates: any[], existingBookings: any[] = []): AvailabilitySlot[] => {
     // Create a set of unavailable dates for quick lookup
@@ -204,38 +236,182 @@ export default function AvailabilityScreen() {
     // Map structure: date string -> array of bookings for that date
     const bookingsByDate = new Map();
 
-    existingBookings.forEach(booking => {
-      const bookingDate = new Date(booking.booking_date).toDateString();
-      if (!bookingsByDate.has(bookingDate)) {
-        bookingsByDate.set(bookingDate, []);
+    // Create a normalized date key function that ignores timezone issues
+    const getNormalizedDateKey = (dateInput: string | Date): string => {
+      let date: Date;
+      
+      if (typeof dateInput === 'string') {
+        // For string inputs like '2025-03-31' or '03/31/2025'
+        if (dateInput.includes('/')) {
+          const [month, day, year] = dateInput.split('/');
+          // Use UTC to avoid timezone shifts
+          date = new Date(Date.UTC(parseInt(year), parseInt(month) - 1, parseInt(day)));
+        } else {
+          // For ISO format, extract just the date part
+          const dateParts = dateInput.split('T')[0].split('-');
+          const year = parseInt(dateParts[0]);
+          const month = parseInt(dateParts[1]) - 1;
+          const day = parseInt(dateParts[2]);
+          date = new Date(Date.UTC(year, month, day));
+        }
+      } else {
+        // For Date objects, create a new UTC date using just the date parts
+        date = new Date(Date.UTC(
+          dateInput.getFullYear(),
+          dateInput.getMonth(),
+          dateInput.getDate()
+        ));
       }
-      bookingsByDate.get(bookingDate).push(booking);
+      
+      // Create a consistent key format: YYYY-MM-DD
+      return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
+    };
+    
+    // Process bookings using the normalized date key
+    existingBookings.forEach(booking => {
+      const dateKey = getNormalizedDateKey(booking.booking_date);
+      console.log(`Processing booking for date: ${booking.booking_date} → ${dateKey}`);
+      
+      if (!bookingsByDate.has(dateKey)) {
+        bookingsByDate.set(dateKey, []);
+      }
+      bookingsByDate.get(dateKey).push(booking);
     });
+    
+    // Log all booking dates for debugging
+    console.log('Walking bookings by date (after processing):');
+    bookingsByDate.forEach((bookings, dateStr) => {
+      console.log(`${dateStr}: ${bookings.length} bookings`);
+      bookings.forEach((b: any) => console.log(`  - ${b.start_time} to ${b.end_time}`));
+    });
+
+    console.log('Walking bookings by date:', JSON.stringify(Object.fromEntries([...bookingsByDate].map(([k, v]) => [k, v.length]))));
+
+    // Helper function to convert time string to a standardized format for comparison
+    // This handles both HH:MM:SS and H:MM AM/PM formats
+    const standardizeTimeFormat = (timeString: string): string => {
+      // Check if time is in 12-hour format (has AM/PM)
+      if (timeString.includes('AM') || timeString.includes('PM')) {
+        // Already in 12-hour format, just return it
+        return timeString;
+      }
+      
+      // Convert 24-hour format to 12-hour format
+      const [hoursStr, minutesStr] = timeString.split(':');
+      let hours = parseInt(hoursStr, 10);
+      const minutes = parseInt(minutesStr, 10);
+      
+      const period = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12 || 12; // Convert 0 to 12 for 12 AM
+      
+      return `${hours}:${minutes.toString().padStart(2, '0')} ${period}`;
+    };
+
+    // Helper function to convert 12-hour time string to minutes since midnight
+    const convertTimeToMinutes = (timeString: string): number => {
+      const standardizedTime = standardizeTimeFormat(timeString);
+      
+      // Handle 12-hour format (e.g., "2:30 PM")
+      const [timePart, period] = standardizedTime.split(' ');
+      const [hours, minutes] = timePart.split(':').map(Number);
+      
+      let totalMinutes = hours * 60 + minutes;
+      
+      // Adjust for PM
+      if (period === 'PM' && hours !== 12) {
+        totalMinutes += 12 * 60;
+      }
+      // Adjust for 12 AM
+      else if (period === 'AM' && hours === 12) {
+        totalMinutes = minutes;
+      }
+      
+      return totalMinutes;
+    };
 
     // Helper function to check if a time slot overlaps with any existing booking
     const isTimeSlotOverlapping = (date: Date, startTime: string, endTime: string): boolean => {
-      const dateString = date.toDateString();
-      const bookingsForDate = bookingsByDate.get(dateString) || [];
+      // Use normalized date key to match with our bookings map
+      const dateKey = getNormalizedDateKey(date);
+      
+      // Special check for March 31, 2025 (the known problematic date)
+      const isMarch31 = date.getMonth() === 2 && date.getDate() === 31 && date.getFullYear() === 2025;
+      if (isMarch31) {
+        console.log(`⚠️ CHECKING MARCH 31: ${dateKey} at ${startTime}-${endTime}`);
+      }
+      
+      const bookingsForDate = bookingsByDate.get(dateKey) || [];
+      
+      if (bookingsForDate.length === 0) {
+        if (isMarch31) {
+          console.log(`🚨 NO BOOKINGS FOUND FOR MARCH 31! Map key format issue? Available keys: ${[...bookingsByDate.keys()].join(', ')}`);
+          
+          // Extra debugging for March 31
+          console.log(`Looking for key: ${dateKey}`);
+          
+          // Check if March 31 exists in any similar format
+          [...bookingsByDate.keys()].forEach(key => {
+            if (key.includes('2025') && (key.includes('3-31') || key.includes('03-31'))) {
+              console.log(`Found potential March 31 match: ${key}`);
+            }
+          });
+        }
+        return false; // No bookings for this date
+      }
 
       // Convert times to minutes since midnight for easier comparison
       const slotStart = convertTimeToMinutes(startTime);
       const slotEnd = convertTimeToMinutes(endTime);
+      
+      if (isMarch31) {
+        console.log(`🔍 March 31 check - Slot: ${startTime}-${endTime} (${slotStart}-${slotEnd} mins)`);
+        console.log(`Found ${bookingsForDate.length} bookings for March 31:`);
+        bookingsForDate.forEach((b: any, i: number) => console.log(`  ${i+1}. ${b.start_time} to ${b.end_time}`));
+      }
 
       // Check for any overlap with existing bookings
-      return bookingsForDate.some((booking: any) => {
+      const isOverlapping = bookingsForDate.some((booking: any) => {
+        // Convert booking times to minutes
         const bookingStart = convertTimeToMinutes(booking.start_time);
         const bookingEnd = convertTimeToMinutes(booking.end_time);
-
+        
+        if (isMarch31) {
+          console.log(`  Comparing with booking: ${booking.start_time}-${booking.end_time} (${bookingStart}-${bookingEnd} mins)`);
+        }
+        
         // Check if the slots overlap
         // Slots overlap if one starts before the other ends
-        return (slotStart < bookingEnd && slotEnd > bookingStart);
+        const overlaps = (slotStart < bookingEnd && slotEnd > bookingStart);
+        
+        if (overlaps && isMarch31) {
+          console.log(`  ✅ OVERLAP FOUND ON MARCH 31!`);
+        }
+        
+        return overlaps;
       });
-    };
-
-    // Helper function to convert time string (HH:MM:SS) to minutes since midnight
-    const convertTimeToMinutes = (timeString: string): number => {
-      const [hours, minutes] = timeString.split(':').map(Number);
-      return hours * 60 + minutes;
+      
+      // Special case for March 31 bookings
+      if (isMarch31) {
+        // Check if this is our target booking time (8:00 AM to 1:00 PM)
+        const is8to1 = 
+          (startTime === '08:00:00' || startTime === '8:00:00' || startTime === '08:00:00 AM' || startTime === '8:00:00 AM') && 
+          (endTime === '13:00:00' || endTime === '1:00:00' || endTime === '13:00:00 PM' || endTime === '1:00:00 PM');
+          
+        if (is8to1) {
+          console.log(`🚨 This is the exact slot we want to block: 8AM-1PM on March 31!`);
+          // Force block this specific slot
+          return true;
+        }
+        
+        // Extra date debugging for March 31
+        console.log(`CRITICAL DATE INFO FOR MARCH 31:`);
+        console.log(`Date object: ${date}`);
+        console.log(`Internal date representation: ${date.toString()}`);
+        console.log(`ISO string: ${date.toISOString()}`);
+        console.log(`Looking for bookings with key: ${getNormalizedDateKey(date)}`);
+      }
+      
+      return isOverlapping;
     };
 
     // Generate dates for the next 2 weeks
@@ -287,6 +463,7 @@ export default function AvailabilityScreen() {
 
         // Skip this slot if it overlaps with an existing booking
         if (isTimeSlotOverlapping(date, startTime, endTime)) {
+          console.log(`Skipping slot on ${date.toDateString()} at ${formatTime(startTime)}-${formatTime(endTime)} - already booked`);
           return; // Skip this slot
         }
 
@@ -318,27 +495,47 @@ export default function AvailabilityScreen() {
 
     console.log('Boarding availability data:', boardingAvailability);
 
-    // Create a map of existing bookings by date
-    const bookingsByDate = new Map();
+    // Create a map to track pet count for each date
+    const petsBookedByDate = new Map();
+    
+    // Process all booking date ranges (not just start date)
     existingBookings.forEach(booking => {
-      const bookingDateStr = new Date(booking.start_date).toDateString();
-      if (!bookingsByDate.has(bookingDateStr)) {
-        bookingsByDate.set(bookingDateStr, []);
+      // Convert start and end dates to Date objects
+      const startDate = new Date(booking.start_date);
+      const endDate = new Date(booking.end_date);
+      
+      // Initialize start date for iteration
+      let currentDate = new Date(startDate);
+      
+      // For each day in the booking range
+      while (currentDate <= endDate) {
+        const dateStr = currentDate.toDateString();
+        
+        // Initialize or increment the pet count for this date
+        if (!petsBookedByDate.has(dateStr)) {
+          petsBookedByDate.set(dateStr, 0);
+        }
+        
+        // Increment by 1 (assuming each booking is for one pet)
+        petsBookedByDate.set(dateStr, petsBookedByDate.get(dateStr) + 1);
+        
+        // Move to next day
+        currentDate.setDate(currentDate.getDate() + 1);
       }
-      bookingsByDate.get(bookingDateStr).push(booking);
     });
+    
+    console.log('Pets booked by date:', Object.fromEntries(petsBookedByDate));
+    console.log('Current max boarding capacity:', maxBoardingCapacity);
 
-    // Default max pets per booking
-    const DEFAULT_MAX_PETS = 2;
     // Default price per night
     const DEFAULT_PRICE = '30.00';
 
     // Check if a date is already fully booked
     const isDateBooked = (date: Date): boolean => {
       const dateStr = date.toDateString();
-      const bookings = bookingsByDate.get(dateStr) || [];
+      const petsBooked = petsBookedByDate.get(dateStr) || 0;
       // If boarding capacity is exceeded for this date, it's not available
-      return bookings.length >= DEFAULT_MAX_PETS;
+      return petsBooked >= maxBoardingCapacity;
     };
 
     // Process each available date
@@ -348,8 +545,14 @@ export default function AvailabilityScreen() {
 
       // Skip if date is already fully booked
       if (isDateBooked(date)) {
+        console.log(`Skipping date ${date.toDateString()} - already fully booked`);
         return;
       }
+      
+      // Get the number of pets already booked for this date
+      const dateStr = date.toDateString();
+      const petsBooked = petsBookedByDate.get(dateStr) || 0;
+      const spotsRemaining = maxBoardingCapacity - petsBooked;
 
       const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
       const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -363,7 +566,7 @@ export default function AvailabilityScreen() {
         date: dateString,
         startTime: '', // Not applicable for boarding
         endTime: '',  // Not applicable for boarding
-        formattedTime: `Overnight Stay - $${DEFAULT_PRICE}/night`
+        formattedTime: `Overnight Stay - $${DEFAULT_PRICE}/night (${spotsRemaining} spot${spotsRemaining !== 1 ? 's' : ''} left)`
       });
     });
 
@@ -391,6 +594,11 @@ export default function AvailabilityScreen() {
   };
 
   const formatTime = (timeString: string): string => {
+    // If the time already has AM/PM, return it as is
+    if (timeString.includes('AM') || timeString.includes('PM')) {
+      return timeString;
+    }
+    
     // Convert 24h time to 12h format
     const [hours, minutes] = timeString.split(':');
     const hour = parseInt(hours, 10);

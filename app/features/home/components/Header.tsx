@@ -1,9 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Bell } from 'lucide-react-native';
 
 interface HeaderProps {
-  userName: string;
+  userName: string; // Still keeping this for compatibility
   hasNotifications?: boolean;
   onPressNotification?: () => void;
 }
@@ -15,9 +15,12 @@ export function Header({
 }: HeaderProps) {
   return (
     <View style={styles.header}>
-      <View>
-        <Text style={styles.greeting}>Good morning,</Text>
-        <Text style={styles.userName}>{userName}</Text>
+      <View style={styles.logoContainer}>
+        <Image 
+          source={{ uri: 'https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/JbQCQMgQ4yI2ewPHDQW8/media/67c3eb52e05408715276d0a5.png' }}
+          style={styles.logo}
+          resizeMode="contain"
+        />
       </View>
       <TouchableOpacity 
         style={styles.notificationButton}
@@ -37,15 +40,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 24,
   },
-  greeting: {
-    fontFamily: 'Poppins-Regular',
-    fontSize: 16,
-    color: '#8E8E93',
+  logoContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#223140',
+    borderRadius: 30,
+    width: 160,
+    height: 60,
+    padding: 10,
   },
-  userName: {
-    fontFamily: 'Poppins-Bold',
-    fontSize: 24,
-    color: '#1A1A1A',
+  logo: {
+    width: 140,
+    height: 50,
   },
   notificationButton: {
     width: 48,

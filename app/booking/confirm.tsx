@@ -7,6 +7,20 @@ import { ChevronLeft } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStripe } from '@stripe/stripe-react-native';
 
+// Define a type for sitter rates
+type SitterRates = {
+  id: string;
+  sitter_id: string;
+  walking_rate_per_hour: number;
+  walking_rate_for_additional_dog: number;
+  boarding_rate_per_day: number;
+  boarding_rate_for_additional_dog: number;
+  max_dogs_walking: number;
+  max_dogs_boarding: number;
+  created_at: string;
+  updated_at: string;
+};
+
 export default function ConfirmBookingScreen() {
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
@@ -15,6 +29,8 @@ export default function ConfirmBookingScreen() {
   const [hasSavedCard, setHasSavedCard] = useState(false);
   const [cardLast4, setCardLast4] = useState<string | null>(null);
   const [isLoadingPaymentMethods, setIsLoadingPaymentMethods] = useState(false);
+  const [sitterRates, setSitterRates] = useState<SitterRates | null>(null);
+  const [isLoadingRates, setIsLoadingRates] = useState(true);
   
   // Initialize Stripe hooks
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
@@ -27,13 +43,108 @@ export default function ConfirmBookingScreen() {
   const endTime = params.endTime as string;
   const selectedPetsJson = params.selectedPets as string;
   const selectedPets = selectedPetsJson ? JSON.parse(selectedPetsJson) : [];
+  
+  // Calculate duration (just for display purposes)
+  const calculateDuration = () => {
+    try {
+      const convertTo24HourFormat = (time: string) => {
+        const [timePart, modifier] = time.split(' ');
+        let [hours, minutes] = timePart.split(':').map(Number);
+        
+        if (hours === 12) {
+          hours = modifier === 'PM' ? 12 : 0;
+        } else if (modifier === 'PM') {
+          hours += 12;
+        }
+        
+        return hours + minutes / 60;
+      };
+      
+      const startHours = convertTo24HourFormat(startTime);
+      const endHours = convertTo24HourFormat(endTime);
+      
+      // Calculate duration, handling if end time is on the next day
+      const duration = endHours >= startHours ? endHours - startHours : 24 - startHours + endHours;
+      
+      return Math.max(1, Math.round(duration)); // Ensure at least 1 hour and round to nearest hour
+    } catch (error) {
+      console.error('Error calculating duration:', error);
+      return 1; // Default to 1 hour if calculation fails
+    }
+  };
+  
+  const durationHours = calculateDuration();
+  
+  // Dynamic price calculation based on sitter rates
+  const calculatePrice = () => {
+    if (!sitterRates) {
+      // Default fallback rates if sitter rates aren't loaded yet
+      const baseRate = 20.00;
+      const additionalPetRate = 10.00;
+      const baseFee = baseRate; // Per walk, not per hour
+      const additionalPetFee = Math.max(0, selectedPets.length - 1) * additionalPetRate;
+      const subtotal = baseFee + additionalPetFee;
+      const platformFee = subtotal * 0.10; // 10% platform fee
+      return {
+        baseRate,
+        baseFee,
+        additionalPetRate,
+        additionalPetFee,
+        platformFee,
+        totalPrice: subtotal + platformFee
+      };
+    }
+    
+    // Calculate using actual sitter rates
+    const baseRate = sitterRates.walking_rate_per_hour; // Despite name, this is per walk
+    const additionalPetRate = sitterRates.walking_rate_for_additional_dog;
+    const baseFee = baseRate; // Per walk, not per hour
+    const additionalPetFee = Math.max(0, selectedPets.length - 1) * additionalPetRate;
+    const subtotal = baseFee + additionalPetFee;
+    const platformFee = subtotal * 0.10; // 10% platform fee
+    
+    return {
+      baseRate,
+      baseFee,
+      additionalPetRate,
+      additionalPetFee,
+      platformFee,
+      totalPrice: subtotal + platformFee
+    };
+  };
+  
+  const pricing = calculatePrice();
 
-  // Calculate price
-  const basePrice = 20.00;
-  const additionalPetFee = Math.max(0, selectedPets.length - 1) * 10.00;
-  const serviceFee = 2.50;
-  const totalPrice = basePrice + additionalPetFee + serviceFee;
-
+  // Fetch sitter rates
+  useEffect(() => {
+    const fetchSitterRates = async () => {
+      if (!sitterId) return;
+      
+      try {
+        setIsLoadingRates(true);
+        
+        const { data, error } = await supabase
+          .from('sitter_info')
+          .select('*')
+          .eq('sitter_id', sitterId)
+          .single();
+          
+        if (error) {
+          console.error('Error fetching sitter rates:', error);
+          return;
+        }
+        
+        setSitterRates(data);
+      } catch (error) {
+        console.error('Error in fetching sitter rates:', error);
+      } finally {
+        setIsLoadingRates(false);
+      }
+    };
+    
+    fetchSitterRates();
+  }, [sitterId]);
+  
   // Check if user has a saved payment method
   const checkSavedCard = async () => {
     if (!user) return;
@@ -99,7 +210,7 @@ export default function ConfirmBookingScreen() {
         start_time: startTime,
         end_time: endTime,
         selected_pets: JSON.stringify(selectedPets), // Convert to JSON string to match Edge Function expectation
-        total_price: totalPrice
+        total_price: pricing.totalPrice
       };
       console.log('Init payment request payload:', JSON.stringify(requestPayload));
       
@@ -160,7 +271,7 @@ export default function ConfirmBookingScreen() {
       // Log request payload for debugging
       const requestPayload = {
         customer_id: customerId,
-        total_price: totalPrice,
+        total_price: pricing.totalPrice,
         sitter_id: sitterId,
         booking_id: bookingId
       };
@@ -239,7 +350,7 @@ export default function ConfirmBookingScreen() {
         return new Promise((resolve) => {
           Alert.alert(
             'Payment Method',
-            `Pay $${totalPrice.toFixed(2)} with card ending in ${cardLast4}?`,
+            `Pay $${pricing.totalPrice.toFixed(2)} with card ending in ${cardLast4}?`,
             [
               {
                 text: 'Use New Card',
@@ -278,7 +389,7 @@ export default function ConfirmBookingScreen() {
                         start_time: startTime,
                         end_time: endTime,
                         selected_pets: JSON.stringify(selectedPets), // Convert to JSON string
-                        total_price: totalPrice
+                        total_price: pricing.totalPrice
                       }
                     });
                     
@@ -388,29 +499,40 @@ export default function ConfirmBookingScreen() {
           <Text style={styles.summaryTitle}>Booking Details</Text>
           <Text style={styles.summaryText}>Date: {date}</Text>
           <Text style={styles.summaryText}>Time: {startTime} - {endTime}</Text>
+          <Text style={styles.summaryText}>Duration: {durationHours} hour{durationHours !== 1 ? 's' : ''}</Text>
           <Text style={styles.summaryText}>Number of Pets: {selectedPets.length}</Text>
         </View>
 
-        <View style={styles.priceContainer}>
-          <Text style={styles.priceTitle}>Price Summary</Text>
-          <View style={styles.priceRow}>
-            <Text style={styles.priceItem}>Walking Fee</Text>
-            <Text style={styles.priceValue}>$20.00</Text>
+        {isLoadingRates ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="small" color="#63C7B8" />
+            <Text style={styles.loadingText}>Loading pricing information...</Text>
           </View>
-          <View style={styles.priceRow}>
-            <Text style={styles.priceItem}>Additional Pet Fee</Text>
-            <Text style={styles.priceValue}>${Math.max(0, selectedPets.length - 1) * 10}.00</Text>
+        ) : (
+          <View style={styles.priceContainer}>
+            <Text style={styles.priceTitle}>Price Summary</Text>
+            <View style={styles.priceRow}>
+              <Text style={styles.priceItem}>Base Rate (1 walk)</Text>
+              <Text style={styles.priceValue}>${pricing.baseFee.toFixed(2)}</Text>
+            </View>
+            {selectedPets.length > 1 && (
+              <View style={styles.priceRow}>
+                <Text style={styles.priceItem}>Additional Pet Fee ({selectedPets.length - 1} pet{selectedPets.length - 1 !== 1 ? 's' : ''})</Text>
+                <Text style={styles.priceValue}>${pricing.additionalPetFee.toFixed(2)}</Text>
+              </View>
+            )}
+            <View style={styles.priceRow}>
+              <Text style={styles.priceItem}>Platform Fee (10%)</Text>
+              <Text style={styles.priceValue}>${pricing.platformFee.toFixed(2)}</Text>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.priceRow}>
+              <Text style={styles.totalText}>Total</Text>
+              <Text style={styles.totalValue}>${pricing.totalPrice.toFixed(2)}</Text>
+            </View>
+            <Text style={styles.rateNoteText}>Sitter's Rate: ${sitterRates?.walking_rate_per_hour.toFixed(2) || '20.00'}/walk</Text>
           </View>
-          <View style={styles.priceRow}>
-            <Text style={styles.priceItem}>Service Fee</Text>
-            <Text style={styles.priceValue}>$2.50</Text>
-          </View>
-          <View style={styles.divider} />
-          <View style={styles.priceRow}>
-            <Text style={styles.totalText}>Total</Text>
-            <Text style={styles.totalValue}>${20 + Math.max(0, selectedPets.length - 1) * 10 + 2.50}</Text>
-          </View>
-        </View>
+        )}
       </ScrollView>
 
       <View style={styles.bottomContainer}>
@@ -436,6 +558,20 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+  },
+  loadingContainer: {
+    margin: 16,
+    padding: 16,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 150,
+  },
+  loadingText: {
+    marginTop: 12,
+    color: '#666666',
+    fontSize: 14,
   },
   header: {
     flexDirection: 'row',
@@ -514,6 +650,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#63C7B8',
+  },
+  rateNoteText: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    color: '#666666',
+    marginTop: 8,
+    textAlign: 'right',
   },
   bottomContainer: {
     padding: 16,

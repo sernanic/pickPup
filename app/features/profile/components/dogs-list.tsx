@@ -7,11 +7,17 @@ import { router } from 'expo-router';
 interface DogsListProps {
   pets: Pet[];
   onDogPress?: (pet: Pet) => void;
+  onAddDogPress?: () => void;
 }
 
-export function DogsList({ pets, onDogPress }: DogsListProps) {
+export function DogsList({ pets, onDogPress, onAddDogPress }: DogsListProps) {
   const handleAddDog = () => {
-    router.push("/add-dog");
+    if (onAddDogPress) {
+      onAddDogPress();
+    } else {
+      // Fallback for backward compatibility
+      router.push('/(profile)/pets');
+    }
   };
 
   return (
