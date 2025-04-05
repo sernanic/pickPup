@@ -24,14 +24,17 @@ type Booking = {
   sitter_id: string;
   sitter_name?: string;
   sitter_image?: string;
-  service_type: 'Dog Walking';
-  booking_date: string; 
-  start_time: string;
-  end_time: string;
+  service_type: 'Dog Walking' | 'Dog Boarding';
+  booking_date?: string; // Optional for walking bookings
+  start_time?: string; // Optional for walking bookings
+  end_time?: string; // Optional for walking bookings
+  start_date?: string; // Optional for boarding bookings
+  end_date?: string; // Optional for boarding bookings
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
   selected_pets: BookingPet[];
   total_price: number;
   created_at: string;
+  booking_type: 'walking' | 'boarding';
 };
 
 // Empty array for now, we'll load from database
@@ -67,9 +70,13 @@ export default function BookingsScreen() {
       
       // Get today's date for filtering
       const today = new Date().toISOString().split('T')[0];
-      
-      // Query walking_bookings table
-      let query = supabase
+
+      // STEP 1: Fetch all pet IDs first to handle them efficiently
+      const allPetIds: string[] = [];
+      let allBookings: any[] = [];
+
+      // STEP 2: Query walking bookings
+      const { data: walkingBookings, error: walkingError } = await supabase
         .from('walking_bookings')
         .select(`
           id,
@@ -84,26 +91,65 @@ export default function BookingsScreen() {
           profiles:sitter_id(id, name, avatar_url)
         `)
         .eq('owner_id', user?.id)
-        .in('status', statuses);
+        .in('status', statuses)
+        .order('booking_date', { ascending: activeTab === 'upcoming' });
+
+      if (walkingError) throw walkingError;
+
+      // Process walking bookings
+      const processedWalkingBookings = walkingBookings.filter(booking => {
+        // Filter based on date - only if activeTab is upcoming
+        if (activeTab === 'upcoming') {
+          return new Date(booking.booking_date) >= new Date(today);
+        } else {
+          // For completed, show past bookings and cancelled ones
+          return new Date(booking.booking_date) < new Date(today) || booking.status === 'cancelled';
+        }
+      }).map(booking => ({
+        ...booking, 
+        booking_type: 'walking' as const
+      }));
+
+      allBookings = [...processedWalkingBookings];
       
-      // For upcoming, only show future bookings
-      if (activeTab === 'upcoming') {
-        query = query.gte('booking_date', today);
-      } else {
-        // For completed, show past bookings and cancelled ones
-        query = query.or(`booking_date.lt.${today},status.eq.cancelled`);
-      }
-      
-      // Order by date
-      query = query.order('booking_date', { ascending: activeTab === 'upcoming' });
-      
-      const { data, error } = await query;
-      
-      if (error) throw error;
-      
-      // Get all the pet IDs first to fetch them in a single query
-      const allPetIds: string[] = [];
-      data.forEach((booking: any) => {
+      // STEP 3: Query boarding bookings
+      const { data: boardingBookings, error: boardingError } = await supabase
+        .from('boarding_bookings')
+        .select(`
+          id,
+          sitter_id,
+          start_date,
+          end_date,
+          selected_pets,
+          status,
+          total_price,
+          created_at,
+          profiles:sitter_id(id, name, avatar_url)
+        `)
+        .eq('owner_id', user?.id)
+        .in('status', statuses)
+        .order('start_date', { ascending: activeTab === 'upcoming' });
+
+      if (boardingError) throw boardingError;
+
+      // Process boarding bookings
+      const processedBoardingBookings = boardingBookings.filter(booking => {
+        // Filter based on date - only if activeTab is upcoming
+        if (activeTab === 'upcoming') {
+          return new Date(booking.start_date) >= new Date(today);
+        } else {
+          // For completed, show past bookings and cancelled ones
+          return new Date(booking.end_date) < new Date(today) || booking.status === 'cancelled';
+        }
+      }).map(booking => ({
+        ...booking, 
+        booking_type: 'boarding' as const
+      }));
+
+      allBookings = [...allBookings, ...processedBoardingBookings];
+
+      // Extract all pet IDs from both booking types
+      allBookings.forEach(booking => {
         let petsData: string[] = [];
         
         if (typeof booking.selected_pets === 'string') {
@@ -129,9 +175,7 @@ export default function BookingsScreen() {
         });
       });
       
-      console.log('All pet IDs:', allPetIds);
-      
-      // If we have pet IDs, fetch their details from the pets table
+      // STEP 4: Fetch all pet details in a single query
       let petDetailsMap: Record<string, any> = {};
       if (allPetIds.length > 0) {
         const { data: petsData, error: petsError } = await supabase
@@ -147,11 +191,9 @@ export default function BookingsScreen() {
         });
       }
       
-      // Transform data to match our Booking type with enhanced pet information
-      const formattedBookings: Booking[] = data.map((booking: any) => {
-        // Parse the selected pets data to handle both formats: 
-        // 1. Array of IDs as strings: ["id1", "id2"] 
-        // 2. Array of objects: [{id: "id1"}, {id: "id2"}]
+      // STEP 5: Format all bookings to match our Booking type
+      const formattedBookings: Booking[] = allBookings.map(booking => {
+        // Parse the selected pets data
         let petsData: any[] = [];
         
         if (typeof booking.selected_pets === 'string') {
@@ -182,21 +224,44 @@ export default function BookingsScreen() {
             age: petDetails.age || '',
           };
         });
-        
-        return {
+
+        const baseBooking = {
           id: booking.id,
           sitter_id: booking.sitter_id,
           sitter_name: booking.profiles?.name || 'Unknown Sitter',
           sitter_image: booking.profiles?.avatar_url || undefined,
-          service_type: 'Dog Walking',
-          booking_date: booking.booking_date,
-          start_time: booking.start_time,
-          end_time: booking.end_time,
           status: booking.status,
           selected_pets: enhancedPets,
           total_price: booking.total_price,
-          created_at: booking.created_at
+          created_at: booking.created_at,
+          booking_type: booking.booking_type
         };
+
+        // Add type-specific fields based on booking_type
+        if (booking.booking_type === 'walking') {
+          return {
+            ...baseBooking,
+            service_type: 'Dog Walking',
+            booking_date: booking.booking_date,
+            start_time: booking.start_time,
+            end_time: booking.end_time,
+          };
+        } else {
+          return {
+            ...baseBooking,
+            service_type: 'Dog Boarding',
+            start_date: booking.start_date,
+            end_date: booking.end_date,
+          };
+        }
+      });
+      
+      // STEP 6: Sort bookings by date (either booking_date or start_date)
+      formattedBookings.sort((a, b) => {
+        const dateA = a.booking_type === 'walking' ? new Date(a.booking_date || '') : new Date(a.start_date || '');
+        const dateB = b.booking_type === 'walking' ? new Date(b.booking_date || '') : new Date(b.start_date || '');
+        
+        return activeTab === 'upcoming' ? dateA.getTime() - dateB.getTime() : dateB.getTime() - dateA.getTime();
       });
       
       setBookings(formattedBookings);
@@ -216,7 +281,8 @@ export default function BookingsScreen() {
   // Filter bookings is no longer needed since we're fetching filtered data from database
 
   // Format date for display
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | undefined) => {
+    if (!dateString) return 'N/A';
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
@@ -317,16 +383,31 @@ export default function BookingsScreen() {
                   <View style={styles.detailRow}>
                     <Calendar size={16} color="#8E8E93" />
                     <Text style={styles.detailText}>
-                      {formatDate(item.booking_date)}
+                      {item.booking_type === 'walking' 
+                        ? formatDate(item.booking_date)
+                        : `${formatDate(item.start_date)} - ${formatDate(item.end_date)}`
+                      }
                     </Text>
                   </View>
                   
-                  <View style={styles.detailRow}>
-                    <Clock size={16} color="#8E8E93" />
-                    <Text style={styles.detailText}>
-                      {item.start_time.slice(0, 5)} - {item.end_time.slice(0, 5)}
-                    </Text>
-                  </View>
+                  {item.booking_type === 'walking' ? (
+                    <View style={styles.detailRow}>
+                      <Clock size={16} color="#8E8E93" />
+                      <Text style={styles.detailText}>
+                        {item.start_time?.slice(0, 5) || 'N/A'} - {item.end_time?.slice(0, 5) || 'N/A'}
+                      </Text>
+                    </View>
+                  ) : (
+                    <View style={styles.detailRow}>
+                      <Clock size={16} color="#8E8E93" />
+                      <Text style={styles.detailText}>
+                        {item.start_date && item.end_date 
+                          ? `${Math.ceil((new Date(item.end_date).getTime() - new Date(item.start_date).getTime()) / (1000 * 60 * 60 * 24))} nights`
+                          : 'Duration unknown'
+                        }
+                      </Text>
+                    </View>
+                  )}
                   
                   <View style={styles.detailRow}>
                     <Dog size={16} color="#8E8E93" />
@@ -438,11 +519,18 @@ export default function BookingsScreen() {
                             onPress={async () => {
                               try {
                                 // Check if a message thread exists for this booking
-                                const { data: existingThreads, error: threadError } = await supabase
+                                let threadQuery = supabase
                                   .from('message_threads')
-                                  .select('id')
-                                  .eq('booking_id', selectedBooking.id)
-                                  .single();
+                                  .select('id');
+                                
+                                // Set the right query field based on booking type
+                                if (selectedBooking.booking_type === 'walking') {
+                                  threadQuery = threadQuery.eq('walking_booking_id', selectedBooking.id);
+                                } else {
+                                  threadQuery = threadQuery.eq('boarding_booking_id', selectedBooking.id);
+                                }
+                                
+                                const { data: existingThreads, error: threadError } = await threadQuery.single();
                                 
                                 if (threadError && threadError.code !== 'PGRST116') {
                                   console.error('Error checking message thread:', threadError);
@@ -456,16 +544,36 @@ export default function BookingsScreen() {
                                   return;
                                 }
                                 
+                                // Create thread data object with proper type
+                                type ThreadData = {
+                                  booking_type: 'walking' | 'boarding';
+                                  owner_id: string | undefined;
+                                  sitter_id: string;
+                                  last_message: string;
+                                  last_message_time: string;
+                                  walking_booking_id?: string;
+                                  boarding_booking_id?: string;
+                                };
+                                
+                                const threadData: ThreadData = {
+                                  booking_type: selectedBooking.booking_type,
+                                  owner_id: user?.id,
+                                  sitter_id: selectedBooking.sitter_id,
+                                  last_message: '',
+                                  last_message_time: new Date().toISOString()
+                                };
+                                
+                                // Set the appropriate booking ID field
+                                if (selectedBooking.booking_type === 'walking') {
+                                  threadData.walking_booking_id = selectedBooking.id;
+                                } else {
+                                  threadData.boarding_booking_id = selectedBooking.id;
+                                }
+                                
                                 // Create a new message thread
                                 const { data: newThread, error: createError } = await supabase
                                   .from('message_threads')
-                                  .insert({
-                                    booking_id: selectedBooking.id,
-                                    owner_id: user?.id,
-                                    sitter_id: selectedBooking.sitter_id,
-                                    last_message: '',
-                                    last_message_time: new Date().toISOString()
-                                  })
+                                  .insert(threadData)
                                   .select('id')
                                   .single();
                                 
@@ -500,15 +608,30 @@ export default function BookingsScreen() {
                     <View style={styles.modalDetailRow}>
                       <Calendar size={18} color="#8E8E93" />
                       <Text style={styles.modalDetailText}>
-                        {formatDate(selectedBooking.booking_date)}
+                        {selectedBooking.booking_type === 'walking' 
+                          ? formatDate(selectedBooking.booking_date)
+                          : `${formatDate(selectedBooking.start_date)} - ${formatDate(selectedBooking.end_date)}`
+                        }
                       </Text>
                     </View>
-                    <View style={styles.modalDetailRow}>
-                      <Clock size={18} color="#8E8E93" />
-                      <Text style={styles.modalDetailText}>
-                        {selectedBooking.start_time.slice(0, 5)} - {selectedBooking.end_time.slice(0, 5)}
-                      </Text>
-                    </View>
+                    {selectedBooking.booking_type === 'walking' ? (
+                      <View style={styles.modalDetailRow}>
+                        <Clock size={18} color="#8E8E93" />
+                        <Text style={styles.modalDetailText}>
+                          {selectedBooking.start_time?.slice(0, 5) || 'N/A'} - {selectedBooking.end_time?.slice(0, 5) || 'N/A'}
+                        </Text>
+                      </View>
+                    ) : (
+                      <View style={styles.modalDetailRow}>
+                        <Clock size={18} color="#8E8E93" />
+                        <Text style={styles.modalDetailText}>
+                          {selectedBooking.start_date && selectedBooking.end_date 
+                            ? `${Math.ceil((new Date(selectedBooking.end_date).getTime() - new Date(selectedBooking.start_date).getTime()) / (1000 * 60 * 60 * 24))} nights`
+                            : 'Duration unknown'
+                          }
+                        </Text>
+                      </View>
+                    )}
                     <View style={styles.modalDetailRow}>
                       <DollarSign size={18} color="#8E8E93" />
                       <Text style={styles.modalDetailText}>

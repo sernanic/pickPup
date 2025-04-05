@@ -11,7 +11,8 @@ export default function RegisterScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [userType, setUserType] = useState<UserRole>('owner');
+  // All users will be dog owners by default
+  const userType: UserRole = 'owner';
   
   const { register, isLoading, error } = useAuthStore();
 
@@ -62,39 +63,8 @@ export default function RegisterScreen() {
           <View style={{ width: 24 }} />
         </View>
 
-        <View style={styles.userTypeContainer}>
-          <TouchableOpacity
-            style={[
-              styles.userTypeButton,
-              userType === 'owner' && styles.userTypeButtonActive,
-            ]}
-            onPress={() => setUserType('owner')}
-          >
-            <Text
-              style={[
-                styles.userTypeText,
-                userType === 'owner' && styles.userTypeTextActive,
-              ]}
-            >
-              Dog Owner
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.userTypeButton,
-              userType === 'sitter' && styles.userTypeButtonActive,
-            ]}
-            onPress={() => setUserType('sitter')}
-          >
-            <Text
-              style={[
-                styles.userTypeText,
-                userType === 'sitter' && styles.userTypeTextActive,
-              ]}
-            >
-              Dog Sitter
-            </Text>
-          </TouchableOpacity>
+        <View style={styles.roleIndicator}>
+          <Text style={styles.roleText}>Registering as a Dog Owner</Text>
         </View>
 
         <View style={styles.inputContainer}>
@@ -271,6 +241,18 @@ const styles = StyleSheet.create({
     color: '#8E8E93',
   },
   userTypeTextActive: {
+    color: '#63C7B8',
+  },
+  roleIndicator: {
+    backgroundColor: '#E9FBF8',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+    alignItems: 'center',
+  },
+  roleText: {
+    fontFamily: 'Poppins-Medium',
+    fontSize: 16,
     color: '#63C7B8',
   },
   inputContainer: {

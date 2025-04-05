@@ -13,7 +13,6 @@ if (!supabaseUrl || !supabaseKey) {
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function createPetsBucket() {
-  console.log('Creating pets bucket...');
   
   try {
     // First check if the bucket exists
@@ -24,12 +23,10 @@ async function createPetsBucket() {
       return;
     }
     
-    console.log('Current buckets:', bucketList.map(b => b.name));
     
     const bucketExists = bucketList.some(bucket => bucket.name === 'pets');
     
     if (bucketExists) {
-      console.log('✅ The pets bucket already exists!');
       
       // Update bucket to ensure it's public
       const { error: updateError } = await supabase.storage.updateBucket('pets', {
@@ -39,9 +36,7 @@ async function createPetsBucket() {
       
       if (updateError) {
         console.error('Error updating bucket:', updateError);
-      } else {
-        console.log('✅ Updated pets bucket to be public');
-      }
+      } 
     } else {
       // Create the bucket
       const { data, error } = await supabase.storage.createBucket('pets', {
@@ -51,20 +46,14 @@ async function createPetsBucket() {
       
       if (error) {
         console.error('Error creating bucket:', error);
-      } else {
-        console.log('✅ Successfully created pets bucket!');
       }
     }
     
-    // Check bucket policies
-    console.log('Setting public bucket policies...');
     
     const { error: policyError } = await supabase.storage.from('pets').getPublicUrl('test-path');
     
     if (policyError) {
       console.error('Error with bucket policies:', policyError);
-    } else {
-      console.log('✅ Bucket policies are working correctly');
     }
     
   } catch (error) {

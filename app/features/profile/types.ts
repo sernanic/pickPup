@@ -46,6 +46,10 @@ export interface UserProfile {
   avatar_url: string | null;
   created_at: string;
   updated_at: string;
+  maxdistance?: string;
+  phoneNumber?: string;
+  stripe_account_id?: string;
+  stripe_customer_id?: string;
   pets?: Pet[];
   addresses?: Address[];
 }

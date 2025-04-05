@@ -17,7 +17,7 @@ export function Header({
     <View style={styles.header}>
       <View style={styles.logoContainer}>
         <Image 
-          source={{ uri: 'https://images.leadconnectorhq.com/image/f_webp/q_80/r_1200/u_https://assets.cdn.filesafe.space/JbQCQMgQ4yI2ewPHDQW8/media/67c3eb52e05408715276d0a5.png' }}
+          source={require('../../../assets/images/PikpupLogo.png')}
           style={styles.logo}
           resizeMode="contain"
         />
@@ -43,7 +43,6 @@ const styles = StyleSheet.create({
   logoContainer: {
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#223140',
     borderRadius: 30,
     width: 160,
     height: 60,

@@ -1,8 +1,9 @@
-import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, KeyboardAvoidingView, Platform, ScrollView, Alert, Dimensions } from 'react-native';
 import { Link, router } from 'expo-router';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react-native';
 import { useAuthStore } from '../../stores/authStore';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -11,16 +12,37 @@ export default function LoginScreen() {
   
   const { login, isLoading, error } = useAuthStore();
 
+  // Clear any previous errors when component renders
+  useEffect(() => {
+    // This would require adding a clearError function to your auth store
+    // But for now we'll work with the current implementation
+  }, []);
+
   const handleLogin = async () => {
+    if (!email.trim()) {
+      Alert.alert('Login Error', 'Please enter your email');
+      return;
+    }
+    
+    if (!password.trim()) {
+      Alert.alert('Login Error', 'Please enter your password');
+      return;
+    }
+    
     try {
       await login(email, password);
-      if (error) {
-        Alert.alert('Login Error', error);
-      }
+      // Don't check error state here - it's updated asynchronously
     } catch (err) {
       console.error('Login error:', err);
     }
   };
+  
+  // Show error alert if error state exists
+  useEffect(() => {
+    if (error) {
+      Alert.alert('Login Error', error);
+    }
+  }, [error]);
 
   return (
     <KeyboardAvoidingView
@@ -30,20 +52,23 @@ export default function LoginScreen() {
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.logoContainer}>
           <Image
-            source={{ uri: 'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?q=80&w=200&auto=format&fit=crop' }}
+            source={require('../assets/images/PikpupLogo.png')}
             style={styles.logo}
+            resizeMode="contain"
           />
-          <Text style={styles.appName}>PikPup</Text>
         </View>
 
-        <Text style={styles.title}>Welcome Back</Text>
-        <Text style={styles.subtitle}>Sign in to your account</Text>
+        <Text style={styles.title}>Log In</Text>
+        <Text style={styles.subtitle}>Welcome back to PikPup</Text>
 
         <View style={styles.inputContainer}>
-          <Mail size={20} color="#8E8E93" style={styles.inputIcon} />
+          <View style={styles.iconContainer}>
+            <Mail size={20} color="#63C7B8" style={styles.inputIcon} />
+          </View>
           <TextInput
             style={styles.input}
             placeholder="Email"
+            placeholderTextColor="#A0A0A0"
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -52,10 +77,13 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.inputContainer}>
-          <Lock size={20} color="#8E8E93" style={styles.inputIcon} />
+          <View style={styles.iconContainer}>
+            <Lock size={20} color="#63C7B8" style={styles.inputIcon} />
+          </View>
           <TextInput
             style={styles.input}
             placeholder="Password"
+            placeholderTextColor="#A0A0A0"
             value={password}
             onChangeText={setPassword}
             secureTextEntry={!showPassword}
@@ -65,9 +93,9 @@ export default function LoginScreen() {
             onPress={() => setShowPassword(!showPassword)}
           >
             {showPassword ? (
-              <EyeOff size={20} color="#8E8E93" />
+              <EyeOff size={20} color="#63C7B8" />
             ) : (
-              <Eye size={20} color="#8E8E93" />
+              <Eye size={20} color="#63C7B8" />
             )}
           </TouchableOpacity>
         </View>
@@ -83,9 +111,16 @@ export default function LoginScreen() {
           onPress={handleLogin}
           disabled={isLoading}
         >
-          <Text style={styles.buttonText}>
-            {isLoading ? 'Signing in...' : 'Sign In'}
-          </Text>
+          <LinearGradient
+            colors={['#63C7B8', '#4EAAA0']}
+            style={styles.buttonGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+          >
+            <Text style={styles.buttonText}>
+              {isLoading ? 'Signing in...' : 'Log In'}
+            </Text>
+          </LinearGradient>
         </TouchableOpacity>
 
         <View style={styles.dividerContainer}>
@@ -125,6 +160,8 @@ export default function LoginScreen() {
   );
 }
 
+const { width, height } = Dimensions.get('window');
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -137,74 +174,87 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 60,
+    marginTop: height * 0.05,
   },
   logo: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-  },
-  appName: {
-    fontFamily: 'Poppins-Bold',
-    fontSize: 24,
-    color: '#63C7B8',
-    marginTop: 10,
+    width: width * 0.5,
+    height: width * 0.25,
+    maxWidth: 240,
   },
   title: {
     fontFamily: 'Poppins-Bold',
-    fontSize: 28,
-    color: '#1A1A1A',
-    marginBottom: 8,
+    fontSize: 32,
+    color: '#1F2D3D',
+    marginBottom: 12,
+    textAlign: 'center',
   },
   subtitle: {
     fontFamily: 'Poppins-Regular',
     fontSize: 16,
-    color: '#8E8E93',
-    marginBottom: 32,
+    color: '#8492A6',
+    marginBottom: 40,
+    textAlign: 'center',
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E5E5EA',
-    borderRadius: 12,
-    paddingHorizontal: 16,
+    borderColor: '#E0E7FF',
+    borderRadius: 16,
     marginBottom: 16,
-    height: 56,
+    height: 60,
+    backgroundColor: '#F9FAFF',
+  },
+  iconContainer: {
+    width: 50,
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   inputIcon: {
-    marginRight: 12,
+    marginLeft: 12,
   },
   input: {
     flex: 1,
     fontFamily: 'Poppins-Regular',
     fontSize: 16,
-    color: '#1A1A1A',
+    color: '#1F2D3D',
+    height: '100%',
   },
   eyeIcon: {
-    padding: 8,
+    padding: 15,
   },
   forgotPassword: {
     fontFamily: 'Poppins-Medium',
     fontSize: 14,
     color: '#63C7B8',
     textAlign: 'right',
-    marginBottom: 24,
+    marginBottom: 32,
   },
   button: {
-    backgroundColor: '#63C7B8',
-    borderRadius: 12,
+    borderRadius: 16,
     height: 56,
+    overflow: 'hidden',
+    marginBottom: 28,
+    shadowColor: '#63C7B8',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  buttonGradient: {
+    width: '100%',
+    height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
   },
   buttonDisabled: {
-    backgroundColor: '#A78BFA',
+    opacity: 0.7,
   },
   buttonText: {
     fontFamily: 'Poppins-SemiBold',
-    fontSize: 16,
+    fontSize: 18,
     color: '#FFFFFF',
   },
   dividerContainer: {
@@ -226,18 +276,24 @@ const styles = StyleSheet.create({
   socialButtonsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 32,
+    marginBottom: 40,
   },
   socialButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#E5E5EA',
-    borderRadius: 12,
+    borderColor: '#E0E7FF',
+    borderRadius: 16,
     height: 56,
     paddingHorizontal: 24,
     flex: 0.48,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   socialIcon: {
     width: 24,
@@ -247,21 +303,23 @@ const styles = StyleSheet.create({
   socialButtonText: {
     fontFamily: 'Poppins-Medium',
     fontSize: 14,
-    color: '#1A1A1A',
+    color: '#1F2D3D',
   },
   signupContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 8,
+    marginTop: 16,
+    marginBottom: 40,
   },
   signupText: {
     fontFamily: 'Poppins-Regular',
-    fontSize: 14,
-    color: '#8E8E93',
+    fontSize: 16,
+    color: '#8492A6',
   },
   signupLink: {
     fontFamily: 'Poppins-SemiBold',
-    fontSize: 14,
+    fontSize: 16,
     color: '#63C7B8',
   },
+
 });

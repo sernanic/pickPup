@@ -8,6 +8,7 @@ interface UserSession {
   email: string;
   role: UserRole;
   name: string | null;
+  maxDistance: number;
 }
 
 interface AuthState {
@@ -24,6 +25,9 @@ interface AuthState {
   
   // Session management
   loadUser: () => Promise<void>;
+  
+  // Update maxDistance directly in auth store
+  updateMaxDistance: (distance: number) => Promise<boolean>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -44,7 +48,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       
       const { data: profileData } = await supabase
         .from('profiles')
-        .select('role, name')
+        .select('role, name, maxdistance')
         .eq('id', data.user?.id)
         .single();
       
@@ -54,6 +58,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           email: data.user?.email || '',
           role: profileData?.role as UserRole,
           name: profileData?.name || null,
+          maxDistance: parseInt(profileData?.maxdistance || '50', 10),
         },
         isLoading: false 
       });
@@ -90,6 +95,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             email: authData.user.email || '',
             name,
             role,
+            maxdistance: '25',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           }
@@ -123,6 +129,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           email: authData.user.email || '',
           role,
           name,
+          maxDistance: 25,
         },
         isLoading: false,
         error: null
@@ -169,7 +176,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (session?.user) {
         const { data: profileData } = await supabase
           .from('profiles')
-          .select('role, name')
+          .select('role, name, maxdistance')
           .eq('id', session.user.id)
           .single();
         
@@ -179,6 +186,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             email: session.user.email || '',
             role: profileData?.role as UserRole,
             name: profileData?.name || null,
+            maxDistance: parseInt(profileData?.maxdistance || '50', 10),
           },
           isLoading: false,
           initialized: true,
@@ -196,4 +204,37 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
     }
   },
+  
+  // Add function to update maxDistance directly in auth store
+  updateMaxDistance: async (distance: number) => {
+    const { user } = get();
+    if (!user) return false;
+    
+    try {
+      set({ isLoading: true });
+      
+      // Update in database
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          maxdistance: distance.toString(),
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', user.id);
+        
+      if (error) throw error;
+      
+      // Update in state
+      set({ 
+        user: { ...user, maxDistance: distance },
+        isLoading: false 
+      });
+      
+      return true;
+    } catch (error: any) {
+      console.error('Error updating max distance:', error);
+      set({ error: error.message, isLoading: false });
+      return false;
+    }
+  }
 })); 

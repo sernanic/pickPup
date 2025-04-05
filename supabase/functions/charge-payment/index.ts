@@ -21,14 +21,14 @@ interface RequestBody {
   total_price: number
   sitter_id: string
   booking_id: string
+  booking_type: 'walking' | 'boarding'
 }
 
 Deno.serve(async (req) => {
   try {
     const body = await req.json()
-    console.log('Request body received:', JSON.stringify(body))
     
-    const { customer_id, total_price, sitter_id, booking_id } = body as RequestBody
+    const { customer_id, total_price, sitter_id, booking_id, booking_type } = body as RequestBody
 
     // Get sitter's Stripe account ID
     const { data: sitterProfile } = await supabase
@@ -74,14 +74,29 @@ Deno.serve(async (req) => {
       }
     })
 
-    // Update booking with payment info
-    await supabase
-      .from('walking_bookings')
-      .update({
-        payment_intent_id: paymentIntent.id,
-        status: 'confirmed'
-      })
-      .eq('id', booking_id)
+    // Update booking with payment info based on booking type
+    if (booking_type === 'walking' || !booking_type) {
+      // Default to walking bookings for backward compatibility
+      await supabase
+        .from('walking_bookings')
+        .update({
+          payment_intent_id: paymentIntent.id,
+          status: 'confirmed'
+        })
+        .eq('id', booking_id)
+      
+    } else if (booking_type === 'boarding') {
+      await supabase
+        .from('boarding_bookings')
+        .update({
+          payment_intent_id: paymentIntent.id,
+          status: 'confirmed'
+        })
+        .eq('id', booking_id)
+      
+    } else {
+      console.error(`Unknown booking type: ${booking_type}`);
+    }
 
     return new Response(
       JSON.stringify({

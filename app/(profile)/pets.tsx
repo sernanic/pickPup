@@ -115,7 +115,6 @@ export default function PetsScreen() {
           const contentType = 'image/jpeg';
           
           // Upload the image to the 'pets' bucket (created by migration)
-          console.log('Uploading image to path:', filePath);
           
           // Upload the image with error handling
           const { data: uploadData, error: uploadError } = await supabase.storage
@@ -126,7 +125,6 @@ export default function PetsScreen() {
             });
             
           if (uploadError) {
-            console.log('Upload error:', uploadError);
             
             // If bucket doesn't exist, provide a helpful message
             if (uploadError.message?.includes('Bucket not found')) {
@@ -136,7 +134,6 @@ export default function PetsScreen() {
             throw uploadError;
           }
           
-          console.log('Upload successful:', uploadData);
           
           // Get public URL
           const { data: urlData } = await supabase.storage
@@ -273,8 +270,6 @@ export default function PetsScreen() {
           const filePath = `${user.id}/${fileName}.jpg`;
           const contentType = 'image/jpeg';
           
-          // Upload the image to the 'pets' bucket (created by migration)
-          console.log('Uploading image to path:', filePath);
           
           // Upload the image with error handling
           const { data: uploadData, error: uploadError } = await supabase.storage
@@ -284,9 +279,7 @@ export default function PetsScreen() {
               upsert: true,
             });
             
-          if (uploadError) {
-            console.log('Upload error:', uploadError);
-            
+          if (uploadError) {            
             // If bucket doesn't exist, provide a helpful message
             if (uploadError.message?.includes('Bucket not found')) {
               throw new Error('The pets storage bucket has not been set up. Please contact support.');
@@ -295,7 +288,6 @@ export default function PetsScreen() {
             throw uploadError;
           }
           
-          console.log('Upload successful:', uploadData);
           
           // Get public URL
           const { data: urlData } = await supabase.storage

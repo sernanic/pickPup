@@ -75,6 +75,7 @@ const styles = StyleSheet.create({
   featuredCard: {
     width: width * 0.7,
     marginRight: 16,
+    marginBottom: 8, // Added bottom margin to make shadow visible on Android
     borderRadius: 16,
     backgroundColor: '#FFFFFF',
     shadowColor: '#000',

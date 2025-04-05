@@ -119,7 +119,6 @@ export default function ConversationScreen() {
         table: 'messages',
         filter: `thread_id=eq.${id}`
       }, (payload) => {
-        console.log('Received new message via real-time:', payload.new);
         const newMsg = payload.new as Message;
         setMessages(current => [...current, newMsg]);
         
@@ -134,7 +133,6 @@ export default function ConversationScreen() {
       })
       .subscribe();
     
-    console.log('Real-time subscription enabled for thread:', id);
     
     // Clean up subscription
     return () => {

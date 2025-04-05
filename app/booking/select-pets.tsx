@@ -27,12 +27,19 @@ export default function SelectPetsScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Get slot details from params
-  const slotId = params.slotId as string;
+  // Get booking details from params
+  const mode = params.mode as 'walking' | 'boarding';
   const sitterId = params.sitterId as string;
+  
+  // Walking mode params
+  const slotId = params.slotId as string;
   const date = params.date as string;
   const startTime = params.startTime as string;
   const endTime = params.endTime as string;
+  
+  // Boarding mode params
+  const startDate = params.startDate as string;
+  const endDate = params.endDate as string;
 
   useEffect(() => {
     if (user) {
@@ -78,18 +85,36 @@ export default function SelectPetsScreen() {
       return;
     }
 
+    // Set up common parameters
+    const commonParams = {
+      sitterId,
+      mode,
+      selectedPets: JSON.stringify(selectedPets)
+    };
+    
     // Navigate to the next screen (confirmation/payment) with the selected pets
-    router.push({
-      pathname: `/booking/confirm`, 
-      params: { 
-        sitterId, 
-        slotId, 
-        date, 
-        startTime, 
-        endTime, 
-        selectedPets: JSON.stringify(selectedPets)
-      }
-    });
+    if (mode === 'walking') {
+      router.push({
+        pathname: `/booking/confirm`, 
+        params: { 
+          ...commonParams,
+          slotId, 
+          date, 
+          startTime, 
+          endTime
+        }
+      });
+    } else {
+      // Boarding mode
+      router.push({
+        pathname: `/booking/confirm`, 
+        params: { 
+          ...commonParams,
+          startDate,
+          endDate
+        }
+      });
+    }
   };
 
   // Display loading indicator while fetching data
@@ -160,8 +185,18 @@ export default function SelectPetsScreen() {
       <ScrollView style={styles.contentContainer}>
         <View style={styles.bookingSummary}>
           <Text style={styles.summaryTitle}>Booking Details</Text>
-          <Text style={styles.summaryText}>Date: {date}</Text>
-          <Text style={styles.summaryText}>Time: {startTime} - {endTime}</Text>
+          {mode === 'walking' ? (
+            <>
+              <Text style={styles.summaryText}>Date: {date}</Text>
+              <Text style={styles.summaryText}>Time: {startTime} - {endTime}</Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.summaryText}>Start Date: {startDate ? new Date(startDate).toLocaleDateString() : 'Not selected'}</Text>
+              <Text style={styles.summaryText}>End Date: {endDate ? new Date(endDate).toLocaleDateString() : 'Not selected'}</Text>
+              <Text style={styles.summaryText}>Service: Boarding</Text>
+            </>
+          )}
         </View>
 
         <Text style={styles.sectionTitle}>Select pets for this booking:</Text>

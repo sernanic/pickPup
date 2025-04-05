@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, ActivityIndicator, Alert, Image, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -11,7 +11,8 @@ import {
   AddressManager,
   DogsList 
 } from '../features/profile/components';
-import { ChevronRight, Bell, Shield, CreditCard, CircleHelp as HelpCircle, LogOut, MapPin, DogIcon, User, Settings, Camera, X } from 'lucide-react-native';
+import { ChevronRight, Bell, Shield, CreditCard, CircleHelp as HelpCircle, LogOut, MapPin, DogIcon, User, Settings, Camera, X, Ruler } from 'lucide-react-native';
+import Slider from '@react-native-community/slider';
 
 export default function ProfileScreen() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
@@ -20,6 +21,9 @@ export default function ProfileScreen() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [showMaxDistanceModal, setShowMaxDistanceModal] = useState(false);
+  const [maxDistance, setMaxDistance] = useState(25);
+  const [updatingDistance, setUpdatingDistance] = useState(false);
   
   // Navigation functions
   const navigateToAddressManager = () => {
@@ -32,9 +36,13 @@ export default function ProfileScreen() {
 
   useEffect(() => {
     async function loadProfile() {
+      
       if (!user) return;
 
       try {
+        // Log user auth ID for verification
+        const { data: { session } } = await supabase.auth.getSession();
+
         const { data, error } = await supabase
           .from('profiles')
           .select('*, pets(*)')
@@ -43,6 +51,8 @@ export default function ProfileScreen() {
 
         if (error) throw error;
         setProfile(data);
+        // Set initial max distance from profile
+        setMaxDistance(parseInt(data.maxdistance || '25', 10));
       } catch (error) {
         console.error('Error loading profile:', error);
       } finally {
@@ -137,6 +147,37 @@ export default function ProfileScreen() {
     }
   };
 
+  const handleUpdateMaxDistance = async () => {
+    if (!user) {
+      console.error('No user found, cannot update max distance');
+      Alert.alert('Error', 'You must be logged in to update preferences.');
+      return;
+    }
+    
+    
+    try {
+      setUpdatingDistance(true);
+      
+      // Use the updateMaxDistance function from authStore
+      const success = await useAuthStore.getState().updateMaxDistance(maxDistance);
+      
+      if (success) {
+        // Update local profile state
+        setProfile(prev => prev ? { ...prev, maxdistance: maxDistance.toString() } : null);
+        
+        Alert.alert('Success', 'Your maximum distance preference has been updated!');
+        setShowMaxDistanceModal(false);
+      } else {
+        throw new Error('Failed to update maximum distance');
+      }
+    } catch (error: any) {
+      console.error('Error updating max distance:', error);
+      Alert.alert('Error', `Failed to update: ${error.message || 'Unknown error'}`);
+    } finally {
+      setUpdatingDistance(false);
+    }
+  };
+
   if (isLoading || uploading) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
@@ -161,7 +202,7 @@ export default function ProfileScreen() {
             onPress={handleChangeProfilePicture}
           >
             {profile?.avatar_url ? (
-              <>
+              <React.Fragment>
                 <View style={styles.profileImage}>
                   <Image 
                     source={{ uri: profile.avatar_url }} 
@@ -175,16 +216,16 @@ export default function ProfileScreen() {
                 <View style={styles.cameraButton}>
                   <Camera size={14} color="#FFFFFF" />
                 </View>
-              </>
+              </React.Fragment>
             ) : (
-              <>
+              <React.Fragment>
                 <View style={styles.profileImage}>
                   <User size={36} color="#63C7B8" />
                 </View>
                 <View style={styles.cameraButton}>
                   <Camera size={14} color="#FFFFFF" />
                 </View>
-              </>
+              </React.Fragment>
             )}
           </TouchableOpacity>
           <Text style={styles.profileName}>{profile?.name || user?.email || 'User'}</Text>
@@ -273,6 +314,22 @@ export default function ProfileScreen() {
               thumbColor={locationEnabled ? '#62C6B9' : '#F4F3F4'}
             />
           </View>
+          
+          <TouchableOpacity 
+            style={styles.settingItem}
+            onPress={() => setShowMaxDistanceModal(true)}
+          >
+            <View style={styles.settingIconContainer}>
+              <Ruler size={20} color="#63C7B8" />
+            </View>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>Maximum Distance</Text>
+              <Text style={styles.settingDescription}>
+                {profile?.maxdistance ? `${profile.maxdistance} miles` : 'Set your preferred search radius'}
+              </Text>
+            </View>
+            <ChevronRight size={20} color="#8E8E93" />
+          </TouchableOpacity>
         </View>
         
         {/* Support Section */}
@@ -342,6 +399,65 @@ export default function ProfileScreen() {
         </View>
       </ScrollView>
 
+      {/* Max Distance Modal */}
+      <Modal
+        visible={showMaxDistanceModal}
+        transparent={true}
+        animationType="slide"
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Set Maximum Distance</Text>
+              <TouchableOpacity 
+                style={styles.closeButton}
+                onPress={() => setShowMaxDistanceModal(false)}
+              >
+                <X size={24} color="#8E8E93" />
+              </TouchableOpacity>
+            </View>
+            
+            <Text style={styles.sliderValue}>{maxDistance} miles</Text>
+            
+            <Slider
+              style={styles.slider}
+              minimumValue={1}
+              maximumValue={50}
+              step={1}
+              value={maxDistance}
+              onValueChange={setMaxDistance}
+              minimumTrackTintColor="#63C7B8"
+              maximumTrackTintColor="#D1D1D6"
+              thumbTintColor="#63C7B8"
+            />
+            
+            <View style={styles.sliderLabels}>
+              <Text style={styles.sliderLabel}>1</Text>
+              <Text style={styles.sliderLabel}>25</Text>
+              <Text style={styles.sliderLabel}>50</Text>
+            </View>
+            
+            <Text style={styles.modalDescription}>
+              Set the maximum distance (in miles) that you're willing to travel or search for pet sitters.
+            </Text>
+            
+            <TouchableOpacity 
+              style={[
+                styles.updateButton,
+                updatingDistance && styles.disabledButton
+              ]}
+              onPress={handleUpdateMaxDistance}
+              disabled={updatingDistance}
+            >
+              {updatingDistance ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text style={styles.updateButtonText}>Update Preference</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -517,5 +633,83 @@ const styles = StyleSheet.create({
   versionText: {
     fontSize: 14,
     color: '#8E8E93',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#333',
+  },
+  closeButton: {
+    padding: 4,
+  },
+  sliderValue: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#63C7B8',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  slider: {
+    width: '100%',
+    height: 40,
+  },
+  sliderLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 20,
+  },
+  sliderLabel: {
+    fontSize: 14,
+    color: '#8E8E93',
+  },
+  modalDescription: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  updateButton: {
+    backgroundColor: '#63C7B8',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  updateButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  disabledButton: {
+    opacity: 0.6,
   },
 });

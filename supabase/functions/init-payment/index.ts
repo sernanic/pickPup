@@ -13,24 +13,39 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
 const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-interface RequestBody {
+interface BaseRequestBody {
   owner_id: string
   sitter_id: string
+  selected_pets: string // JSON string from frontend
+  total_price: number
+  booking_type: 'walking' | 'boarding'
+}
+
+interface WalkingRequestBody extends BaseRequestBody {
+  booking_type: 'walking'
   availability_slot_id: string
   booking_date: string
   start_time: string
   end_time: string
-  selected_pets: string // Now a JSON string from frontend
-  total_price: number
 }
+
+interface BoardingRequestBody extends BaseRequestBody {
+  booking_type: 'boarding'
+  start_date: string
+  end_date: string
+}
+
+type RequestBody = WalkingRequestBody | BoardingRequestBody
 
 Deno.serve(async (req) => {
   try {
     const body = await req.json()
     console.log('Request body received:', JSON.stringify(body))
     
-    const { owner_id, sitter_id, availability_slot_id, booking_date, start_time, 
-            end_time, selected_pets, total_price } = body as RequestBody
+    const { owner_id, sitter_id, selected_pets, total_price, booking_type } = body as RequestBody
+    
+    // Log the booking type for debugging
+    console.log(`Processing ${booking_type} booking`)
             
     // Parse the selected_pets string back to an object
     let parsedPets
@@ -99,24 +114,62 @@ Deno.serve(async (req) => {
         .eq('id', owner_id)
     }
 
-    // Create a pending booking
-    const { data: booking, error: bookingError } = await supabase
-      .from('walking_bookings')
-      .insert({
-        owner_id,
-        sitter_id,
-        availability_slot_id,
-        booking_date,
-        start_time,
-        end_time,
-        selected_pets: parsedPets, // Use the parsed pets object
-        total_price,
-        status: 'pending'
-      })
-      .select()
-      .single()
+    // Create a pending booking based on booking type
+    let booking;
+    let bookingError;
+    
+    if (booking_type === 'walking') {
+      // Extract walking-specific fields
+      const { availability_slot_id, booking_date, start_time, end_time } = body as WalkingRequestBody;
+      
+      // Create walking booking
+      const result = await supabase
+        .from('walking_bookings')
+        .insert({
+          owner_id,
+          sitter_id,
+          availability_slot_id,
+          booking_date,
+          start_time,
+          end_time,
+          selected_pets: parsedPets, // Use the parsed pets object
+          total_price,
+          status: 'pending'
+        })
+        .select()
+        .single();
+        
+      booking = result.data;
+      bookingError = result.error;
+    } else if (booking_type === 'boarding') {
+      // Extract boarding-specific fields
+      const { start_date, end_date } = body as BoardingRequestBody;
+      
+      console.log(`Creating boarding booking: ${start_date} to ${end_date} for pets: ${selected_pets}`);
+      
+      // Create boarding booking
+      const result = await supabase
+        .from('boarding_bookings')
+        .insert({
+          owner_id,
+          sitter_id,
+          start_date,
+          end_date,
+          selected_pets: parsedPets, // Use the parsed pets object
+          total_price,
+          status: 'pending'
+        })
+        .select()
+        .single();
+        
+      booking = result.data;
+      bookingError = result.error;
+    } else {
+      throw new Error(`Invalid booking type: ${booking_type}`);
+    }
 
     if (bookingError || !booking) {
+      console.error('Booking error:', bookingError);
       throw new Error('Failed to create booking')
     }
 
@@ -134,6 +187,23 @@ Deno.serve(async (req) => {
     })
     
     console.log('Created SetupIntent with destination account:', sitterStripeAccountID)
+    
+    // Update the booking with the payment intent ID
+    if (booking_type === 'walking') {
+      await supabase
+        .from('walking_bookings')
+        .update({ payment_intent_id: setupIntent.id })
+        .eq('id', booking.id);
+        
+      console.log(`Updated walking booking ${booking.id} with payment_intent_id ${setupIntent.id}`);
+    } else {
+      await supabase
+        .from('boarding_bookings')
+        .update({ payment_intent_id: setupIntent.id })
+        .eq('id', booking.id);
+        
+      console.log(`Updated boarding booking ${booking.id} with payment_intent_id ${setupIntent.id}`);
+    }
 
     return new Response(
       JSON.stringify({

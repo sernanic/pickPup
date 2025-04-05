@@ -9,7 +9,6 @@ export async function inspectDatabase() {
       .eq('table_schema', 'public');
 
     if (tablesError) throw tablesError;
-    console.log('Available tables:', tables?.map(t => t.table_name));
 
     // For each table, get its columns
     for (const table of tables || []) {
@@ -20,8 +19,7 @@ export async function inspectDatabase() {
         .eq('table_name', table.table_name);
 
       if (columnsError) throw columnsError;
-      console.log(`\nTable: ${table.table_name}`);
-      console.log('Columns:', columns);
+
     }
 
     // Get RLS policies
@@ -31,7 +29,6 @@ export async function inspectDatabase() {
       .eq('schemaname', 'public');
 
     if (policiesError) throw policiesError;
-    console.log('\nRLS Policies:', policies);
 
   } catch (error) {
     console.error('Error inspecting database:', error);

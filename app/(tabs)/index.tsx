@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { useState, useRef, useEffect } from 'react';
+import { ScrollView, StyleSheet, View, Text, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
@@ -10,14 +10,26 @@ import {
   FeaturedSitters, 
   NearbySitters 
 } from '../features/home/components';
-import { services, sitters, featuredSitters } from '../features/home/data';
+import { services, featuredSitters } from '../features/home/data';
 import { Service, Sitter, FeaturedSitter } from '../features/home/types';
+import { useAuthStore } from '../../stores/authStore';
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const [favorites, setFavorites] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const scrollRef = useRef<ScrollView>(null);
   const router = useRouter();
+  const { user } = useAuthStore();
+  
+  // Simulate a loading state to ensure auth data is ready
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1000);
+    
+    return () => clearTimeout(timer);
+  }, []);
 
   const toggleFavorite = (id: string) => {
     if (favorites.includes(id)) {
@@ -58,8 +70,8 @@ export default function HomeScreen() {
       showsVerticalScrollIndicator={false}
     >
       <Header 
-        userName="Alex" 
-        hasNotifications={true}
+        userName={user?.name || 'Pet Owner'} 
+        hasNotifications={false}
       />
 
       <SearchBar 
@@ -81,7 +93,6 @@ export default function HomeScreen() {
       />
 
       <NearbySitters 
-        sitters={sitters} 
         favorites={favorites} 
         onSitterPress={handleNearbySitterPress} 
         onToggleFavorite={toggleFavorite} 
