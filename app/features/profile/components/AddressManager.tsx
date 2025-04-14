@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { useAuthStore } from '../../../../stores/authStore';
-import { supabase } from '../../../../lib/supabase';
+import { useAuthStore } from '../../../stores/authStore';
+import { supabase } from '../../../lib/supabase';
 import { Address } from '../types';
 import AddressAutocomplete from './AddressAutocomplete';
 import { getAddressesByProfileId, upsertAddress, setPrimaryAddress, deleteAddress } from '../../../lib/addressUtils';

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, KeyboardAvoidingView, Platform, ScrollView, Alert, Dimensions } from 'react-native';
 import { Link, router } from 'expo-router';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react-native';
-import { useAuthStore } from '../../stores/authStore';
+import { useAuthStore } from '../stores/authStore';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function LoginScreen() {
@@ -52,13 +52,13 @@ export default function LoginScreen() {
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.logoContainer}>
           <Image
-            source={require('../assets/images/PikpupLogo.png')}
+            source={require('../../assets/images/PikpupLogo.png')}
             style={styles.logo}
             resizeMode="contain"
           />
         </View>
 
-        <Text style={styles.title}>Log In</Text>
+        {/* <Text style={styles.title}>Log In</Text> */}
         <Text style={styles.subtitle}>Welcome back to PikPup</Text>
 
         <View style={styles.inputContainer}>

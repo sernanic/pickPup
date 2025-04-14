@@ -17,7 +17,7 @@ export function Header({
     <View style={styles.header}>
       <View style={styles.logoContainer}>
         <Image 
-          source={require('../../../assets/images/PikpupLogo.png')}
+          source={require('../../../../assets/images/PikpupLogo.png')}
           style={styles.logo}
           resizeMode="contain"
         />

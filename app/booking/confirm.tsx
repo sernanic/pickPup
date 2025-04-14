@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
-import { supabase } from '../../lib/supabase';
-import { useAuthStore } from '../../stores/authStore';
+import { supabase } from '../lib/supabase';
+import { useAuthStore } from '../stores/authStore';
 import { useLocalSearchParams, router } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

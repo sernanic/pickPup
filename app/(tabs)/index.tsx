@@ -12,8 +12,8 @@ import { FeaturedSitters } from '../features/home/components/FeaturedSitters';
 import { NearbySitters } from '../features/home/components/NearbySitters';
 import { services } from '../features/home/data';
 import { Service, Sitter } from '../features/home/types';
-import { useAuthStore } from '../../stores/authStore';
-import { useSitterStore } from '../../stores/sitterStore';
+import { useAuthStore } from '../stores/authStore';
+import { useSitterStore } from '../stores/sitterStore';
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();

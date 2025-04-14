@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../../app/lib/supabase';
 import { useAuthStore } from './authStore';
 import { Sitter } from './sitterStore';
 

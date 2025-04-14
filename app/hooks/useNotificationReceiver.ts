@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
-import { useAuthStore } from '../../stores/authStore';
-import { supabase } from '../../lib/supabase';
+import { useAuthStore } from '../stores/authStore';
+import { supabase } from '../lib/supabase';
 import { useRouter } from 'expo-router';
 
 // Set up notification handler

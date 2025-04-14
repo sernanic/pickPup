@@ -15,8 +15,8 @@ import {
 } from 'react-native';
 import { X, Camera, Mail, User, Info } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { supabase } from '../../lib/supabase';
-import { useAuthStore } from '../../stores/authStore';
+import { supabase } from '../lib/supabase';
+import { useAuthStore } from '../stores/authStore';
 import { decode } from 'base64-arraybuffer';
 
 interface AccountEditModalProps {

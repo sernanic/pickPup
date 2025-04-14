@@ -5,8 +5,8 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { Search, MessageSquare } from 'lucide-react-native';
 import Animated, { FadeInRight } from 'react-native-reanimated';
 import { Image } from 'expo-image';
-import { supabase } from '../../lib/supabase';
-import { useAuthStore } from '../../stores/authStore';
+import { supabase } from '../lib/supabase';
+import { useAuthStore } from '../stores/authStore';
 import {formatTimestamp} from './messages.tsx.helper';
 
 // Type definitions

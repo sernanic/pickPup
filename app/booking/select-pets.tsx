@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Image, ScrollView } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../lib/supabase';
 import { ChevronLeft, Check } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuthStore } from '../../stores/authStore';
+import { useAuthStore } from '../stores/authStore';
 
 interface Pet {
   id: string;

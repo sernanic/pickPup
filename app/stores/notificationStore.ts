@@ -1,7 +1,7 @@
 import { create } from 'zustand';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../../app/lib/supabase';
 import * as Notifications from 'expo-notifications';
-import { registerForPushNotificationsAsync } from '../utils/notifications';
+import { registerForPushNotificationsAsync } from '../../utils/notifications';
 import { useAuthStore } from './authStore';
 
 export interface Notification {

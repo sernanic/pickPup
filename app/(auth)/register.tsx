@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
 import { Link, router } from 'expo-router';
 import { Mail, Lock, Eye, EyeOff, User, ChevronLeft } from 'lucide-react-native';
-import { useAuthStore, UserRole } from '../../stores/authStore';
+import { useAuthStore, UserRole } from '../stores/authStore';
 
 export default function RegisterScreen() {
   const [name, setName] = useState('');

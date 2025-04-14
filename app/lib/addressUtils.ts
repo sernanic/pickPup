@@ -1,5 +1,5 @@
 import 'react-native-get-random-values';
-import { supabase } from '../../lib/supabase';
+import { supabase } from './supabase';
 import { Address } from '../features/profile/types';
 import { v4 as uuidv4 } from 'uuid';
 

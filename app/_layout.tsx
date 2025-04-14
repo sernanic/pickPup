@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { AuthProvider } from '../providers/AuthProvider';
-import { useAuthStore } from '../stores/authStore';
+import { AuthProvider } from './providers/AuthProvider';
+import { useAuthStore } from './stores/authStore';
 import useNotificationReceiver from './hooks/useNotificationReceiver';
 import { View, Text } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';

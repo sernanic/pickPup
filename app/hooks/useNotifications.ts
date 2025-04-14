@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import * as Notifications from 'expo-notifications';
 import { Platform, Alert } from 'react-native';
-import { supabase } from '../../lib/supabase';
-import { useAuthStore } from '../../stores/authStore';
+import { supabase } from '../lib/supabase';
+import { useAuthStore } from '../stores/authStore';
 
 type PermissionStatus = 'granted' | 'denied' | 'undetermined' | 'error';
 

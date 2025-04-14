@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../../app/lib/supabase';
 import * as Location from 'expo-location';
 import { useAuthStore } from './authStore';
 

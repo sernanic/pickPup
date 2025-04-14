@@ -3,9 +3,9 @@ import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator } fr
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { Star, MapPin, Heart } from 'lucide-react-native';
 import { Sitter } from '../types';
-import { useSitterStore } from '../../../../stores/sitterStore';
-import { useAuthStore } from '../../../../stores/authStore';
-import { useFavoriteStore } from '../../../../stores/favoriteStore';
+import { useSitterStore } from '../../../stores/sitterStore';
+import { useAuthStore } from '../../../stores/authStore';
+import { useFavoriteStore } from '../../../stores/favoriteStore';
 
 interface NearbySittersProps {
   onSitterPress?: (sitter: Sitter) => void;

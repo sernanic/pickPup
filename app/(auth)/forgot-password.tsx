@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { Mail, ChevronLeft } from 'lucide-react-native';
-import { useAuthStore } from '../../stores/authStore';
+import { useAuthStore } from '../stores/authStore';
 
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');

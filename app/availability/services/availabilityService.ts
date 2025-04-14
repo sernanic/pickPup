@@ -1,4 +1,4 @@
-import { supabase } from '../../../lib/supabase';
+import { supabase } from '../../lib/supabase';
 import { AvailabilitySlot, UnavailableDate, WalkingBooking, BoardingBooking, SitterInfo } from '../types';
 import { generateWalkingSlots } from '../utils/slotGenerationUtils';
 

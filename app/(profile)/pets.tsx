@@ -3,8 +3,8 @@ import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, ScrollView,
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { DogsList } from '../features/profile/components';
-import { useAuthStore } from '../../stores/authStore';
-import { supabase } from '../../lib/supabase';
+import { useAuthStore } from '../stores/authStore';
+import { supabase } from '../lib/supabase';
 import { ArrowLeft, X, Plus, Camera } from 'lucide-react-native';
 import { UserProfile, Pet } from '../features/profile/types';
 import * as ImagePicker from 'expo-image-picker';

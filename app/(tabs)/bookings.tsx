@@ -4,8 +4,8 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Calendar, Clock, MapPin, ChevronRight, Dog, RefreshCw, X, Phone, Mail, DollarSign, Star } from 'lucide-react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { supabase } from '@/lib/supabase';
-import { useAuthStore } from '@/stores/authStore';
+import { supabase } from '@/app/lib/supabase';
+import { useAuthStore } from '@/app/stores/authStore';
 import { Link } from 'expo-router';
 import { ActivityIndicator } from 'react-native';
 

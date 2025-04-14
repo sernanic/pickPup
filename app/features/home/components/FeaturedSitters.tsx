@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, FlatList, Dimensions, ActivityIndicator } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Star } from 'lucide-react-native';
-import { useSitterStore } from '../../../../stores/sitterStore';
+import { useSitterStore } from '../../../stores/sitterStore';
 import { useRouter } from 'expo-router';
 
 const { width } = Dimensions.get('window');

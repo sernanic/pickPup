@@ -3,8 +3,8 @@ import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, ActivityIndi
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Star, MapPin, Heart } from 'lucide-react-native';
 import { router } from 'expo-router';
-import { useFavoriteStore, Favorite } from '../../stores/favoriteStore';
-import { useSitterStore, Sitter } from '../../stores/sitterStore';
+import { useFavoriteStore, Favorite } from '../stores/favoriteStore';
+import { useSitterStore, Sitter } from '../stores/sitterStore';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 // Create a simpler type for displaying sitters

@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, FlatList, Dimensions, ActivityIndicator, TextInput, Modal } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../lib/supabase';
 // Import types from the app's type definitions
 import type { Sitter } from '../features/home/types';
 import { Star, MapPin, Calendar, Shield, ChevronLeft, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import TabBar from '../components/TabBar';
-import { useAuthStore } from '../../stores/authStore';
+import { useAuthStore } from '../stores/authStore';
 
 const { width } = Dimensions.get('window');
 
