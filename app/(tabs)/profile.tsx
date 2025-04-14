@@ -11,8 +11,9 @@ import {
   AddressManager,
   DogsList 
 } from '../features/profile/components';
-import { ChevronRight, Bell, Shield, CreditCard, CircleHelp as HelpCircle, LogOut, MapPin, DogIcon, User, Settings, Camera, X, Ruler } from 'lucide-react-native';
+import { ChevronRight, Bell, Shield, CreditCard, CircleHelp as HelpCircle, LogOut, MapPin, DogIcon, User, Settings, Camera, X, Ruler, Heart } from 'lucide-react-native';
 import Slider from '@react-native-community/slider';
+import { AccountEditModal } from '../components/AccountEditModal';
 
 export default function ProfileScreen() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
@@ -22,6 +23,7 @@ export default function ProfileScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [showMaxDistanceModal, setShowMaxDistanceModal] = useState(false);
+  const [showEditProfileModal, setShowEditProfileModal] = useState(false);
   const [maxDistance, setMaxDistance] = useState(25);
   const [updatingDistance, setUpdatingDistance] = useState(false);
   
@@ -32,6 +34,10 @@ export default function ProfileScreen() {
   
   const navigateToPetsManager = () => {
     router.push('/(profile)/pets');
+  };
+  
+  const navigateToFavorites = () => {
+    router.push('/profile/favorites');
   };
 
   useEffect(() => {
@@ -178,6 +184,31 @@ export default function ProfileScreen() {
     }
   };
 
+  const handleProfileUpdated = () => {
+    // Reload the profile data when it's updated
+    if (!user) return;
+    
+    setIsLoading(true);
+    async function loadProfile() {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*, pets(*)')
+          .eq('id', user?.id)
+          .single();
+
+        if (error) throw error;
+        setProfile(data);
+      } catch (error) {
+        console.error('Error loading profile:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    
+    loadProfile();
+  };
+
   if (isLoading || uploading) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
@@ -236,7 +267,10 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Account</Text>
           
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity 
+            style={styles.settingItem}
+            onPress={() => setShowEditProfileModal(true)}
+          >
             <View style={styles.settingIconContainer}>
               <User size={20} color="#63C7B8" />
             </View>
@@ -274,6 +308,20 @@ export default function ProfileScreen() {
             <View style={styles.settingInfo}>
               <Text style={styles.settingLabel}>My Pets</Text>
               <Text style={styles.settingDescription}>Manage your registered pets</Text>
+            </View>
+            <ChevronRight size={20} color="#8E8E93" />
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.settingItem}
+            onPress={navigateToFavorites}
+          >
+            <View style={styles.settingIconContainer}>
+              <Heart size={20} color="#63C7B8" />
+            </View>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>Favorite Sitters</Text>
+              <Text style={styles.settingDescription}>View and manage your saved sitters</Text>
             </View>
             <ChevronRight size={20} color="#8E8E93" />
           </TouchableOpacity>
@@ -458,6 +506,13 @@ export default function ProfileScreen() {
           </View>
         </View>
       </Modal>
+      
+      {/* Account Edit Modal */}
+      <AccountEditModal
+        visible={showEditProfileModal}
+        onClose={() => setShowEditProfileModal(false)}
+        onProfileUpdated={handleProfileUpdated}
+      />
     </SafeAreaView>
   );
 }

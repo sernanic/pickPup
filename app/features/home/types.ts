@@ -11,16 +11,19 @@ export interface Sitter {
   reviews: number;
   distance: number;
   price: number;
+  priceLabel: string;
   image: string;
   verified: boolean;
+  services?: string[];
+  boardingRate?: number;
+  walkingRate?: number;
+  sittingRate?: number;
+  daycareRate?: number;
+  bio?: string;
+  averageRating?: number;
+  totalReviews?: number;
 }
 
-export interface FeaturedSitter {
-  id: string;
-  name: string;
-  rating: number;
-  reviews: number;
-  image: string;
+export interface FeaturedSitter extends Sitter {
   coverImage: string;
-  verified: boolean;
 } 

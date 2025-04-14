@@ -6,38 +6,29 @@ import { useRouter } from 'expo-router';
 import { 
   Header, 
   SearchBar, 
-  ServicesList, 
-  FeaturedSitters, 
-  NearbySitters 
+  ServicesList 
 } from '../features/home/components';
-import { services, featuredSitters } from '../features/home/data';
-import { Service, Sitter, FeaturedSitter } from '../features/home/types';
+import { FeaturedSitters } from '../features/home/components/FeaturedSitters';
+import { NearbySitters } from '../features/home/components/NearbySitters';
+import { services } from '../features/home/data';
+import { Service, Sitter } from '../features/home/types';
 import { useAuthStore } from '../../stores/authStore';
+import { useSitterStore } from '../../stores/sitterStore';
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const [favorites, setFavorites] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+
+  const { fetchSitters } = useSitterStore();
   const scrollRef = useRef<ScrollView>(null);
   const router = useRouter();
   const { user } = useAuthStore();
   
-  // Simulate a loading state to ensure auth data is ready
+  // Fetch sitters data once when component mounts
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
-    
-    return () => clearTimeout(timer);
+    fetchSitters();
   }, []);
 
-  const toggleFavorite = (id: string) => {
-    if (favorites.includes(id)) {
-      setFavorites(favorites.filter(item => item !== id));
-    } else {
-      setFavorites([...favorites, id]);
-    }
-  };
+
 
   const handleSearchPress = () => {
     // Implement search functionality
@@ -51,7 +42,7 @@ export default function HomeScreen() {
     });
   };
 
-  const handleFeaturedSitterPress = (sitter: FeaturedSitter) => {
+  const handleFeaturedSitterPress = (sitter: any) => {
     router.push(`/sitter/${sitter.id}`);
   };
 
@@ -86,16 +77,13 @@ export default function HomeScreen() {
         animationDelay={200}
       />
 
-      <FeaturedSitters 
-        featuredSitters={featuredSitters} 
+     <FeaturedSitters 
         onSitterPress={handleFeaturedSitterPress} 
         animationDelay={300}
       />
 
       <NearbySitters 
-        favorites={favorites} 
         onSitterPress={handleNearbySitterPress} 
-        onToggleFavorite={toggleFavorite} 
         animationDelay={400}
       />
     </ScrollView>

@@ -174,7 +174,7 @@ export default function SitterProfileScreen() {
             <ChevronLeft size={24} color="#1A1A1A" />
           </TouchableOpacity>
           <Image 
-            source={{ uri: sitter?.avatar_url || 'https://via.placeholder.com/500' }}
+            source={{ uri: sitter?.background_url || 'https://via.placeholder.com/500' }}
             style={styles.coverImage}
           />
         </View>

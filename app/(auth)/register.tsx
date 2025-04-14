@@ -159,7 +159,7 @@ export default function RegisterScreen() {
           <View style={styles.divider} />
         </View>
 
-        <View style={styles.socialButtonsContainer}>
+        {/* <View style={styles.socialButtonsContainer}>
           <TouchableOpacity style={styles.socialButton}>
             <Image
               source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Google_%22G%22_Logo.svg/1200px-Google_%22G%22_Logo.svg.png' }}
@@ -175,7 +175,7 @@ export default function RegisterScreen() {
             />
             <Text style={styles.socialButtonText}>Facebook</Text>
           </TouchableOpacity>
-        </View>
+        </View> */}
 
         <View style={styles.loginContainer}>
           <Text style={styles.loginText}>Already have an account? </Text>

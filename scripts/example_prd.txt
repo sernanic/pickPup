@@ -1,0 +1,146 @@
+<context>
+Below is the PRD for the "PikiPup App: New Message Push Notifications" rewritten in the requested Markdown format, adhering to the provided template.
+</context>
+---
+
+# Overview  
+PikiPup is an app that connects dog owners with dog sitters and facilitates communication between them, as well as with app administrators. Currently, users must manually open the app to check for new messages, which can delay important communication related to bookings or pet care. This feature introduces real-time push notifications for new messages, alerting users instantly on their devices even when the app isn’t open. It solves the problem of missed or delayed communication, enhancing responsiveness and engagement for owners, sitters, and admins. By making communication more immediate and reliable, it adds significant value to the user experience.
+
+# Core Features  
+
+### Feature 1: Real-time Push Notification Delivery  
+- **What it does**: Sends an OS-level push notification to a user’s device immediately after another user sends them a message via the PikiPup app.  
+- **Why it’s important**: Ensures users are promptly informed of new messages without needing to check the app, enabling timely responses critical for pet care and bookings.  
+- **How it works**: A backend process (Supabase Edge Function) triggers upon new message insertion in the database, identifies the recipient, retrieves their device push token, and sends a notification payload via the Expo Push Notification service.
+
+### Feature 2: Informative Notification Content  
+- **What it does**: Displays the sender’s name and a preview of the message content within the push notification banner/alert.  
+- **Why it’s important**: Allows users to quickly assess the sender and context without opening the app, helping prioritize responses.  
+- **How it works**: The backend function retrieves the sender’s profile name and includes it with a snippet of the message text in the payload sent to the Expo service.
+
+### Feature 3: Direct Navigation on Notification Tap  
+- **What it does**: Tapping a notification opens the PikiPup app directly to the specific conversation thread of the received message.  
+- **Why it’s important**: Provides a seamless transition from notification to action (reading/replying), improving efficiency and user experience.  
+- **How it works**: The notification payload includes the conversation’s unique `thread_id`. A client-side listener detects the tap, extracts the ID, and navigates to the corresponding screen (`/conversation/[id]`).
+
+### Feature 4: App Icon Badge Count Management  
+- **What it does**: Displays and updates a numeric badge on the PikiPup app icon showing the total number of unread messages.  
+- **Why it’s important**: Offers a persistent, at-a-glance summary of pending messages, keeping users informed even when not actively using the app.  
+- **How it works**: The client app calculates the unread message count (based on `is_read` status) and uses the `expo-notifications` library to set the badge. Updates occur when the app opens, messages are read, or notifications arrive.
+
+### Feature 5: Notification Permission Handling  
+- **What it does**: Prompts users to grant push notification permissions and securely stores their choice and device push token if granted.  
+- **Why it’s important**: Ensures compliance with OS requirements and user opt-in, foundational for the feature to work.  
+- **How it works**: The client app uses `expo-notifications` to request permissions, retrieves the Expo push token if granted, and sends it to the backend for storage in the user’s profile.
+
+# User Experience  
+
+### User Personas  
+- **Pet Owner**: Uses the app to find sitters, manage bookings, and communicate about pet care instructions or updates. Needs timely communication to ensure pet well-being.  
+- **Pet Sitter**: Manages their profile, availability, and bookings while communicating with owners about logistics and pet updates. Responsiveness is key to reliability.  
+- **Admin**: Oversees operations, manages users/bookings, and communicates with owners or sitters. Requires reliable channels to address issues quickly.
+
+### Key User Flows  
+- **Permission Request**: User logs in/opens app -> App checks notification permission status -> If undetermined, OS prompt appears with an explanation -> User grants/denies -> If granted, token is saved to backend.  
+- **Receiving Notification (Background/Killed)**: User A sends message to User B -> Backend triggers notification -> User B’s device shows OS notification (with sender name, preview) -> Badge updates.  
+- **Interacting with Notification**: User B taps notification -> App opens -> Navigates to conversation with User A -> Messages marked as read -> Badge updates.  
+- **Receiving Notification (Foreground)**: User A sends message -> User B has app open -> No OS notification -> Conversation list updates -> Badge updates -> (Optional: In-app banner).
+
+### UI/UX Considerations  
+- Notifications use standard OS banner/lock screen styles for familiarity.  
+- Permission prompts are clear, explaining the value of enabling notifications.  
+- Badge updates are responsive and accurate.  
+- Guidance provided if permissions are denied (e.g., link to device settings).  
+- Tapping a notification transitions smoothly to the correct conversation context.
+
+---
+
+# Technical Architecture  
+
+### System Components  
+- **PikiPup React Native Client Apps (User & Admin)**: Handle permission requests, token storage, notification listeners, badge management, and navigation. Built with `expo-notifications`.  
+- **Supabase Backend**:  
+  - **PostgreSQL Database**: Stores user profiles (including `expo_push_token`), message threads, and messages.  
+  - **Supabase Edge Function (Deno/TypeScript)**: Triggers on new messages, fetches recipient token and sender name, and sends notification via Expo.  
+  - **Database Webhook/Trigger**: Initiates the Edge Function on `INSERT` into the `messages` table.  
+- **Expo Push Notification Service**: External service delivering notifications to iOS (APNS) and Android (FCM) using Expo Push Tokens.
+
+### Data Models  
+- **profiles**: Add `expo_push_token TEXT NULL`.  
+- **messages**: Existing (id, thread_id, sender_id, recipient_id, content, created_at, is_read).  
+- **message_threads**: Existing structure.
+
+### APIs and Integrations  
+- **Client <-> Supabase**: Supabase JS client for auth, data operations, and token storage.  
+- **Supabase Function -> Expo Push API**: HTTPS POST to `https://exp.host/--/api/v2/push/send` with `{to, title, body, data, badge, sound}` payload.  
+- **Client <-> Expo SDK**: Uses `expo-notifications` for permission requests, token retrieval, and badge updates.
+
+### Infrastructure Requirements  
+- Supabase project (Database, Edge Functions).  
+- Expo account for push notification service.  
+- iOS/Android build configurations for push notification capabilities (APNS/FCM).
+
+# Development Roadmap  
+
+### MVP Requirements (Phase 1)  
+- **Database**: Add `expo_push_token` column to `profiles`.  
+- **Client (Both Apps)**:  
+  - Integrate `expo-notifications`.  
+  - Implement permission request flow.  
+  - Retrieve and save token to Supabase.  
+  - Add background notification tap listener (`addNotificationResponseReceivedListener`) for navigation using `data.threadId`.  
+- **Backend (Supabase Function)**:  
+  - Create function triggered on new message `INSERT`.  
+  - Fetch recipient’s token and sender’s name.  
+  - Send basic Expo Push API request with `to`, `title`, `body`, `data: { threadId }`.  
+- **Exclusions**: Badge count updates, foreground handling, advanced error handling.
+
+### Future Enhancements (Phase 2+)  
+- **Badge Count (Client)**: Calculate unread count and update badge on app load, foreground, and message read (`setBadgeCountAsync`).  
+- **Badge Count (Backend)**: Add unread count calculation to Supabase Function and include `badge` in Expo payload.  
+- **Foreground Notifications**: Add `addNotificationReceivedListener` for in-app handling (optional banner).  
+- **Error Handling**: Handle Expo API errors (e.g., `DeviceNotRegistered`), log issues, clear invalid tokens.  
+- **User Settings**: Add in-app option to mute/disable notifications.  
+- **Advanced Features**: Notification grouping (Android), multi-device support.
+
+# Logical Dependency Chain  
+1. **Foundation - Backend**: Add `expo_push_token` to `profiles`. Set up Supabase Function and trigger.  
+2. **Foundation - Client**: Integrate `expo-notifications`, implement permission flow, token saving, in both apps (parallel to #1).  
+3. **Core Logic - Backend**: Build MVP Supabase Function (fetch token/name, send Expo request).  
+4. **Core Logic - Client**: Add background tap handler for navigation.  
+5. **Initial Testable Feature (MVP)**: Users can grant permissions, receive background notifications, and tap to navigate.  
+6. **Enhancement - Client Badging**: Add client-side badge logic.  
+7. **Enhancement - Foreground Handling**: Add foreground listener.  
+8. **Enhancement - Backend Badging & Errors**: Add badge calculation and error handling to function.  
+9. **Further Enhancements**: User settings, grouping, etc., as prioritized.
+
+# Risks and Mitigations  
+
+### Technical Challenges  
+- **Platform Differences**: Push notification behavior varies between iOS and Android.  
+  - **Mitigation**: Test thoroughly on both platforms. Use Expo abstractions, adjust for platform-specific quirks.  
+- **Badge Count Accuracy**: Real-time synchronization across app states is complex.  
+  - **Mitigation (MVP)**: Focus on updates at app open/resume.  
+  - **Mitigation (Post-MVP)**: Combine server-sent badge counts with client updates.
+
+### Figuring Out the MVP  
+- **Risk**: Over-scoping the initial phase.  
+  - **Mitigation**: Stick to MVP core flow (background notification -> tap -> navigate). Defer badging and foreground handling.
+
+### Resource Constraints  
+- **Risk**: Limited time for full feature set across apps and backend.  
+  - **Mitigation**: Phase development per roadmap. Deliver MVP quickly, break enhancements into small tasks.
+
+# Appendix  
+- **Libraries**: `expo-notifications`.  
+- **Services**: Supabase (Database, Edge Functions, Auth), Expo Push Notification Service.  
+- **API Endpoint**: `https://exp.host/--/api/v2/push/send`.  
+- **Key Configuration**: iOS APNS keys, Android FCM server key (via Expo).  
+- **Documentation**:  
+  - Expo Notifications: [https://docs.expo.dev/push-notifications/overview/](https://docs.expo.dev/push-notifications/overview/)  
+  - Supabase Edge Functions: [https://supabase.com/docs/guides/functions](https://supabase.com/docs/guides/functions)  
+  - Supabase Triggers: [https://supabase.com/docs/guides/database/functions](https://supabase.com/docs/guides/database/functions)  
+
+--- 
+
+This format organizes the PRD clearly for development planning and task generation. Let me know if you'd like to adjust anything or proceed with parsing this into tasks!

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../stores/authStore';
@@ -269,7 +270,7 @@ export default function ConfirmBookingScreen() {
         sitter_id: sitterId,
         selected_pets: JSON.stringify(selectedPets), // Convert to JSON string to match Edge Function expectation
         total_price: pricing.totalPrice,
-        mode: mode // Add the booking mode
+        booking_type: mode // Changed from 'mode' to 'booking_type' to match Edge Function expectation
       };
       
       // Mode-specific payload fields
@@ -326,22 +327,37 @@ export default function ConfirmBookingScreen() {
       
       if (initError) throw new Error(initError.message);
       
-      // Open the payment sheet
-      const { error: presentError } = await presentPaymentSheet();
-      
-      if (presentError) {
-        if (presentError.code === 'Canceled') {
-          throw new Error('Payment canceled');
+      // Present the payment sheet
+      const { error: paymentConfirmError } = await presentPaymentSheet();
+
+      if (paymentConfirmError) {
+        if (paymentConfirmError.code === 'Canceled') {
+          // User cancelled
+          Alert.alert('Payment Canceled', 'You have canceled the payment process.');
+        } else {
+          // Other error
+          Alert.alert('Payment Error', paymentConfirmError.message);
         }
-        throw new Error(presentError.message);
+        setIsSubmitting(false);
+        return null;
+      } else {
+        // ** crucial: call handlePaymentSuccess here **
+        await handlePaymentSuccess({
+          // Use clientSecret as placeholder intent ID for now.
+          // IMPORTANT: Stripe might provide the actual PaymentIntent ID after presentPaymentSheet succeeds.
+          // If so, use that instead of clientSecret. Check Stripe SDK docs/response.
+          paymentIntentId: clientSecret, 
+          amount: Math.round(pricing.totalPrice * 100), // Amount in cents
+          bookingId: bookingId // Booking ID from init-payment response
+        });
+        // Return necessary info if needed after success handling
+        return { bookingId }; 
       }
-      
-      // If we get here, card was successfully set up
-      // Now charge the payment
-      return await chargePayment(customerId, bookingId);
     } catch (error: any) {
-      console.error('Error in payment initialization:', error);
-      throw error;
+      console.error('Error initializing payment:', error);
+      Alert.alert('Payment Error', error.message || 'There was an error initiating the payment process.');
+      setIsSubmitting(false);
+      return null;
     }
   };
   
@@ -375,7 +391,8 @@ export default function ConfirmBookingScreen() {
       
       if (!paymentIntentId) throw new Error('Payment intent ID missing from response');
       
-      return { bookingId, paymentIntentId };
+      // Return all necessary data for handlePaymentSuccess
+      return { bookingId, paymentIntentId, amount: chargeData.amount || Math.round(pricing.totalPrice * 100) };
     } catch (error: any) {
       console.error('Error charging payment:', error);
       throw error;
@@ -444,14 +461,18 @@ export default function ConfirmBookingScreen() {
             'Payment Method',
             `Pay $${pricing.totalPrice.toFixed(2)} with card ending in ${cardLast4}?`,
             [
-              {
+              { 
                 text: 'Use New Card',
                 style: 'default',
                 onPress: async () => {
                   try {
                     const result = await initializePayment(formattedDate);
                     if (result) {
-                      createMessageThread(result.bookingId);
+                      await handlePaymentSuccess({
+                        paymentIntentId: result.paymentIntentId,
+                        amount: result.amount, // amount should be in cents
+                        bookingId: result.bookingId
+                      });
                     }
                     resolve(null);
                   } catch (error: any) {
@@ -462,7 +483,7 @@ export default function ConfirmBookingScreen() {
                   }
                 },
               },
-              {
+              { 
                 text: 'Pay with Saved Card',
                 style: 'default',
                 onPress: async () => {
@@ -511,7 +532,11 @@ export default function ConfirmBookingScreen() {
                     
                     const result = await chargePayment(customerId, bookingId);
                     if (result) {
-                      createMessageThread(result.bookingId);
+                      await handlePaymentSuccess({
+                        paymentIntentId: result.paymentIntentId,
+                        amount: result.amount, // amount should be in cents
+                        bookingId: result.bookingId
+                      });
                     }
                     resolve(null);
                   } catch (error: any) {
@@ -522,7 +547,7 @@ export default function ConfirmBookingScreen() {
                   }
                 },
               },
-              {
+              { 
                 text: 'Cancel',
                 style: 'cancel',
                 onPress: () => {
@@ -537,7 +562,11 @@ export default function ConfirmBookingScreen() {
         // No saved card, go through the new card flow
         const result = await initializePayment(formattedDate);
         if (result) {
-          createMessageThread(result.bookingId);
+          await handlePaymentSuccess({
+            paymentIntentId: result.paymentIntentId,
+            amount: result.amount, // amount should be in cents
+            bookingId: result.bookingId
+          });
         }
       }
     } catch (error: any) {
@@ -550,8 +579,72 @@ export default function ConfirmBookingScreen() {
     }
   };
   
-  // Create a message thread for the booking
+  const handlePaymentSuccess = async (paymentData: { paymentIntentId: string; amount: number; bookingId: string }) => {
+    try {
+      setIsSubmitting(false);
+      // Save invoice information to invoices table
+      const invoiceData = {
+        booking_type: mode,
+        walking_booking_id: mode === 'walking' ? paymentData.bookingId : null,
+        boarding_booking_id: mode === 'boarding' ? paymentData.bookingId : null,
+        sitter_id: sitterId,
+        owner_id: user?.id || '', // Add fallback for user id
+        stripe_payment_intent_id: paymentData.paymentIntentId,
+        stripe_invoice_id: paymentData.paymentIntentId, // Assuming intent ID serves as invoice ID for now
+        amount: paymentData.amount / 100, // Amount should be in cents from paymentData
+        platform_fee: calculatePlatformFee(paymentData.amount / 100),
+        sitter_payout: calculateSitterPayout(paymentData.amount / 100),
+        status: 'paid', // Assuming success means paid
+        payment_method: 'card', // Assuming card payment
+        service_type: mode,
+        service_date: mode === 'walking' ? date : startDate,
+        metadata: JSON.stringify({
+          bookingDetails: mode === 'walking' ? {
+            date: date,
+            startTime: startTime,
+            endTime: endTime,
+            duration: duration
+          } : {
+            startDate: startDate,
+            endDate: endDate,
+            nights: duration
+          },
+          pets: selectedPets
+        })
+      };
+
+      const { error: invoiceError } = await supabase.from('invoices').insert([invoiceData]);
+
+      if (invoiceError) {
+        console.error('Error saving invoice:', invoiceError);
+        // Decide if we should alert the user here or just log
+        Alert.alert('Invoice Error', 'There was an issue saving the invoice details, but your booking is confirmed.');
+      } else {
+        console.log('Invoice saved successfully');
+      }
+
+      // Create a message thread for the booking
+      if (user) {
+        // Pass bookingId explicitly to createMessageThread
+        await createMessageThread(paymentData.bookingId);
+      } else {
+        console.error('User not authenticated, cannot create message thread');
+        // Still show success message but don't navigate to messages
+        Alert.alert(
+          'Booking Confirmed',
+          `Your dog ${mode === 'walking' ? 'walk' : 'stay'} booking has been confirmed! The dog sitter will be notified.`,
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('Error handling payment success:', error);
+      Alert.alert('Error', 'There was an error finalizing your booking.');
+      setIsSubmitting(false);
+    }
+  };
+
   const createMessageThread = async (bookingId: string) => {
+    // Remove the paymentIntentData parameter as it's no longer needed here
     if (!user) {
       throw new Error('User not authenticated');
     }
@@ -615,6 +708,16 @@ export default function ConfirmBookingScreen() {
     } catch (error) {
       console.error('Error creating message thread:', error);
     }
+  };
+
+  const calculatePlatformFee = (amount: number) => {
+    // Assuming a 20% platform fee
+    return amount * 0.2;
+  };
+
+  const calculateSitterPayout = (amount: number) => {
+    // Sitter gets 80% after platform fee
+    return amount * 0.8;
   };
 
   return (

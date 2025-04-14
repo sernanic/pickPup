@@ -129,7 +129,7 @@ export default function LoginScreen() {
           <View style={styles.divider} />
         </View>
 
-        <View style={styles.socialButtonsContainer}>
+        {/* <View style={styles.socialButtonsContainer}>
           <TouchableOpacity style={styles.socialButton}>
             <Image
               source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Google_%22G%22_Logo.svg/1200px-Google_%22G%22_Logo.svg.png' }}
@@ -145,7 +145,7 @@ export default function LoginScreen() {
             />
             <Text style={styles.socialButtonText}>Facebook</Text>
           </TouchableOpacity>
-        </View>
+        </View> */}
 
         <View style={styles.signupContainer}>
           <Text style={styles.signupText}>Don't have an account? </Text>

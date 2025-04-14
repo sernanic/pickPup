@@ -1,9 +1,10 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider } from '../providers/AuthProvider';
 import { useAuthStore } from '../stores/authStore';
-import { View } from 'react-native';
+import useNotificationReceiver from './hooks/useNotificationReceiver';
+import { View, Text } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { StripeProvider } from '@stripe/stripe-react-native';
 import Constants from 'expo-constants';
@@ -12,24 +13,38 @@ import Constants from 'expo-constants';
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const { loadUser, isLoading } = useAuthStore();
+  const { loadUser, isLoading, initialized, error } = useAuthStore();
+  const [splashHidden, setSplashHidden] = useState(false);
+  
+  // Initialize notification receiver
+  useNotificationReceiver();
 
   useEffect(() => {
     async function init() {
       try {
+        // Load user data from persistent storage
         await loadUser();
       } catch (e) {
         console.error('Error loading user:', e);
       } finally {
-        await SplashScreen.hideAsync();
+        try {
+          // Hide splash screen after auth is initialized
+          await SplashScreen.hideAsync();
+          setSplashHidden(true);
+        } catch (e) {
+          // Sometimes hideAsync can fail if splash was already hidden
+          console.warn('Error hiding splash screen:', e);
+          setSplashHidden(true);
+        }
       }
     }
 
     init();
   }, []);
 
-  if (isLoading) {
-    return null; // Or a loading component
+  // Don't render anything until the splash screen is hidden
+  if (!splashHidden) {
+    return null;
   }
 
   return (

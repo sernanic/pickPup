@@ -7,7 +7,7 @@ import Animated, { FadeInRight } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../stores/authStore';
-import { formatTimestamp } from './messages.tsx.helper';
+import {formatTimestamp} from './messages.tsx.helper';
 
 // Type definitions
 interface Thread {

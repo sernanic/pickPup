@@ -171,19 +171,30 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   
   loadUser: async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      // Get the current session
+      const { data, error } = await supabase.auth.getSession();
       
-      if (session?.user) {
+      // If there's no session or we got a refresh token error, handle it silently
+      if (!data.session || (error && error.message?.includes('Refresh Token'))) {
+        // This is an expected state for first-time app launch
+        set({ user: null, isLoading: false, initialized: true });
+        return;
+      }
+      
+      // If we have any other type of error, throw it
+      if (error) throw error;
+      
+      if (data.session?.user) {
         const { data: profileData } = await supabase
           .from('profiles')
           .select('role, name, maxdistance')
-          .eq('id', session.user.id)
+          .eq('id', data.session.user.id)
           .single();
         
         set({
           user: {
-            id: session.user.id,
-            email: session.user.email || '',
+            id: data.session.user.id,
+            email: data.session.user.email || '',
             role: profileData?.role as UserRole,
             name: profileData?.name || null,
             maxDistance: parseInt(profileData?.maxdistance || '50', 10),
@@ -196,6 +207,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
     } catch (error: any) {
       console.error('Error loading user:', error.message);
+      // Make sure to clear any potentially corrupted auth state
+      await supabase.auth.signOut();
       set({ 
         user: null, 
         isLoading: false, 

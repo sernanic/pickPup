@@ -1,12 +1,16 @@
 {
   "expo": {
-    "name": "bolt-expo-nativewind",
-    "slug": "bolt-expo-nativewind",
+    "name": "PikPup",
+    "slug": "pikpup",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "myapp",
+    "scheme": "pikpup",
     "userInterfaceStyle": "automatic",
+    "experiments": {
+      "typedRoutes": true,
+      "tsconfigPaths": true
+    },
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
@@ -26,9 +30,6 @@
       "output": "single",
       "favicon": "./assets/images/favicon.png"
     },
-    "plugins": ["expo-router"],
-    "experiments": {
-      "typedRoutes": true
-    }
+    "plugins": ["expo-router"]
   }
 }

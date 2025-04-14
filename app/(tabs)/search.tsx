@@ -1,9 +1,30 @@
 import { useState, useEffect } from 'react';
-import { useLocalSearchParams } from 'expo-router';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, FlatList, Image } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, FlatList, Image, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Search as SearchIcon, Filter, MapPin, Star, Heart } from 'lucide-react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { useAuthStore } from '../../stores/authStore';
+import { useSitterStore, SitterFilters } from '../../stores/sitterStore';
+import { useFavoriteStore } from '../../stores/favoriteStore';
+
+// Type definition for sitters
+type Sitter = {
+  id: string;
+  name: string;
+  rating: number;
+  reviews: number;
+  distance: number;
+  price: number;
+  priceLabel: string;
+  image: string;
+  verified: boolean;
+  services: string[];
+  boardingRate?: number;
+  walkingRate?: number;
+  sittingRate?: number;
+  daycareRate?: number;
+};
 
 // Sample data for filters
 const serviceTypes = [
@@ -21,84 +42,73 @@ const priceRanges = [
   { id: '4', name: '$75+' },
 ];
 
-// Sample data for sitters
-const sitters = [
-  {
-    id: '1',
-    name: 'Emma Wilson',
-    rating: 4.9,
-    reviews: 124,
-    distance: 1.2,
-    price: 35,
-    image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=200&auto=format&fit=crop',
-    verified: true,
-    services: ['Boarding', 'Walking'],
-  },
-  {
-    id: '2',
-    name: 'Michael Brown',
-    rating: 4.7,
-    reviews: 98,
-    distance: 2.5,
-    price: 30,
-    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200&auto=format&fit=crop',
-    verified: true,
-    services: ['Sitting', 'Walking'],
-  },
-  {
-    id: '3',
-    name: 'Sophia Garcia',
-    rating: 4.8,
-    reviews: 156,
-    distance: 3.1,
-    price: 40,
-    image: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?q=80&w=200&auto=format&fit=crop',
-    verified: false,
-    services: ['Training', 'Boarding'],
-  },
-  {
-    id: '4',
-    name: 'James Johnson',
-    rating: 4.6,
-    reviews: 87,
-    distance: 4.2,
-    price: 28,
-    image: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?q=80&w=200&auto=format&fit=crop',
-    verified: true,
-    services: ['Daycare', 'Walking'],
-  },
-  {
-    id: '5',
-    name: 'Olivia Martinez',
-    rating: 4.9,
-    reviews: 142,
-    distance: 2.8,
-    price: 45,
-    image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop',
-    verified: true,
-    services: ['Boarding', 'Training'],
-  },
-  {
-    id: '6',
-    name: 'William Davis',
-    rating: 4.5,
-    reviews: 76,
-    distance: 5.3,
-    price: 32,
-    image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=200&auto=format&fit=crop',
-    verified: false,
-    services: ['Sitting', 'Daycare'],
-  },
+// Distance options are now used to display the current maxDistance setting
+const distanceOptions = [
+  { id: '1', name: '2 miles', value: 2 },
+  { id: '2', name: '5 miles', value: 5 },
+  { id: '3', name: '10 miles', value: 10 },
+  { id: '4', name: '20 miles', value: 20 },
+  { id: '5', name: '50 miles', value: 50 },
+  { id: '6', name: 'Any distance', value: 100 },
 ];
+
+// Function to calculate distance between two points using Haversine formula
+const calculateDistance = (
+  lat1: number, 
+  lon1: number, 
+  lat2: number, 
+  lon2: number
+): number => {
+  const R = 3958.8; // Earth's radius in miles
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const distance = R * c;
+  
+  return parseFloat(distance.toFixed(1)); // Return distance with 1 decimal place
+};
 
 export default function SearchScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
+  const router = useRouter();
+  const { user } = useAuthStore();
+  
+  // Use the sitter store for sitter data
+  const { 
+    sitters, 
+    filteredSitters, 
+    fetchSitters, 
+    filterSitters, 
+    isLoading, 
+    error
+  } = useSitterStore();
+  
+  // Use the favorites store for favorites
+  const {
+    favoriteIds,
+    fetchFavorites,
+    toggleFavorite
+  } = useFavoriteStore();
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedServiceTypes, setSelectedServiceTypes] = useState<string[]>([]);
   const [selectedPriceRanges, setSelectedPriceRanges] = useState<string[]>([]);
-  const [favorites, setFavorites] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
+  
+  // Use maxDistance from user profile in auth store
+  const maxDistance = user?.maxDistance || 25; // Default to 25 miles if not set
+  
+  // Fetch data on component mount
+  useEffect(() => {
+    fetchSitters();
+    fetchFavorites();
+    
+  }, []);
   
   // Handle service type parameter from navigation
   useEffect(() => {
@@ -120,6 +130,18 @@ export default function SearchScreen() {
     }
   }, [params.serviceType]);
 
+  // Apply filters whenever filter criteria change
+  useEffect(() => {
+    const filters: SitterFilters = {
+      serviceTypes: selectedServiceTypes,
+      priceRanges: selectedPriceRanges,
+      searchQuery,
+      maxDistance
+    };
+    
+    filterSitters(filters);
+  }, [selectedServiceTypes, selectedPriceRanges, searchQuery, maxDistance, filterSitters]);
+
   const toggleServiceType = (name: string) => {
     if (selectedServiceTypes.includes(name)) {
       setSelectedServiceTypes(selectedServiceTypes.filter(item => item !== name));
@@ -136,45 +158,15 @@ export default function SearchScreen() {
     }
   };
 
-  const toggleFavorite = (id: string) => {
-    if (favorites.includes(id)) {
-      setFavorites(favorites.filter(item => item !== id));
-    } else {
-      setFavorites([...favorites, id]);
-    }
+  const handleToggleFavorite = async (sitterId: string) => {
+    await toggleFavorite(sitterId);
   };
 
-  // Filter sitters based on search query and selected filters
-  const filteredSitters = sitters.filter(sitter => {
-    // Filter by search query
-    if (searchQuery && !sitter.name.toLowerCase().includes(searchQuery.toLowerCase())) {
-      return false;
-    }
-
-    // Filter by service types
-    if (selectedServiceTypes.length > 0) {
-      const hasSelectedService = sitter.services.some(service => 
-        selectedServiceTypes.includes(service)
-      );
-      if (!hasSelectedService) return false;
-    }
-
-    // Filter by price range (simplified for demo)
-    if (selectedPriceRanges.length > 0) {
-      // This is a simplified implementation
-      // In a real app, you would parse the price ranges and check if the sitter's price falls within any selected range
-      const priceRangeMatch = selectedPriceRanges.some(range => {
-        if (range === '$0-$25' && sitter.price <= 25) return true;
-        if (range === '$25-$50' && sitter.price > 25 && sitter.price <= 50) return true;
-        if (range === '$50-$75' && sitter.price > 50 && sitter.price <= 75) return true;
-        if (range === '$75+' && sitter.price > 75) return true;
-        return false;
-      });
-      if (!priceRangeMatch) return false;
-    }
-
-    return true;
-  });
+  // Get current distance display option
+  const getCurrentDistanceDisplay = () => {
+    const option = distanceOptions.find(opt => opt.value === maxDistance);
+    return option ? option.name : `${maxDistance} miles`;
+  };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -250,59 +242,140 @@ export default function SearchScreen() {
               </TouchableOpacity>
             ))}
           </ScrollView>
+
+          <Text style={styles.filterTitle}>Distance (Current: {getCurrentDistanceDisplay()})</Text>
+          <Text style={styles.filterDescription}>
+            You can change your maximum distance in profile settings
+          </Text>
         </Animated.View>
       )}
 
-      <FlatList
-        data={filteredSitters}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.sittersList}
-        showsVerticalScrollIndicator={false}
-        renderItem={({ item }) => (
-          <Animated.View entering={FadeInDown.duration(400)}>
-            <TouchableOpacity style={styles.sitterCard}>
-              <Image source={{ uri: item.image }} style={styles.sitterImage} />
-              <View style={styles.sitterInfo}>
-                <View style={styles.sitterNameRow}>
-                  <Text style={styles.sitterName}>{item.name}</Text>
-                  {item.verified && (
-                    <View style={styles.verifiedBadge}>
-                      <Text style={styles.verifiedText}>Verified</Text>
-                    </View>
-                  )}
-                </View>
-                <View style={styles.ratingContainer}>
-                  <Star size={16} color="#FFD700" fill="#FFD700" />
-                  <Text style={styles.ratingText}>{item.rating}</Text>
-                  <Text style={styles.reviewsText}>({item.reviews} reviews)</Text>
-                </View>
-                <View style={styles.locationContainer}>
-                  <MapPin size={14} color="#8E8E93" />
-                  <Text style={styles.locationText}>{item.distance} miles away</Text>
-                </View>
-                <View style={styles.servicesContainer}>
-                  {item.services.map((service, index) => (
-                    <View key={index} style={styles.serviceTag}>
-                      <Text style={styles.serviceTagText}>{service}</Text>
-                    </View>
-                  ))}
-                </View>
-                <Text style={styles.priceText}>${item.price}/night</Text>
-              </View>
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#63C7B8" />
+          <Text style={styles.loadingText}>Finding sitters near you...</Text>
+        </View>
+      ) : error ? (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredSitters}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.sittersList}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyTitle}>No sitters found</Text>
+              <Text style={styles.emptyText}>
+                {(filteredSitters.length === 0 && sitters.length > 0) 
+                  ? "Try adjusting your filters or search criteria" 
+                  : `No sitters found within ${maxDistance} miles of your location`}
+              </Text>
+            </View>
+          }
+          renderItem={({ item, index }) => (
+            <Animated.View 
+              entering={FadeInDown.delay(index * 100).duration(400)}
+            >
               <TouchableOpacity 
-                style={styles.favoriteButton}
-                onPress={() => toggleFavorite(item.id)}
+                style={styles.sitterCard}
+                onPress={() => {
+                  if (item.id) {
+                    router.push(`/sitter/${item.id}`);
+                  }
+                }}
               >
-                <Heart 
-                  size={20} 
-                  color={favorites.includes(item.id) ? "#FF3B30" : "#8E8E93"} 
-                  fill={favorites.includes(item.id) ? "#FF3B30" : "transparent"} 
-                />
+                <Image source={{ uri: item.image }} style={styles.sitterImage} />
+                <View style={styles.sitterInfo}>
+                  <View style={styles.sitterNameRow}>
+                    <Text style={styles.sitterName}>{item.name}</Text>
+                    {item.verified && (
+                      <View style={styles.verifiedBadge}>
+                        <Text style={styles.verifiedText}>Verified</Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.ratingContainer}>
+                    <Star size={16} color="#FFD700" fill="#FFD700" />
+                   
+                    <Text style={styles.ratingText}> 
+                      {item.rating} 
+                      <Text style={styles.reviewsText}> ({item.reviews} reviews)</Text>
+                    </Text>
+                  </View>
+                  <View style={styles.locationContainer}>
+                    <MapPin size={14} color="#8E8E93" />
+                    <Text style={styles.locationText}>
+                      {`${item.distance} miles away`} 
+                    </Text>
+                  </View>
+                  <View style={styles.servicesContainer}>
+                    {item.services && item.services.map((service, index) => (
+                      <View key={index} style={styles.serviceTag}>
+                        <Text style={styles.serviceTagText}>{service}</Text>
+                      </View>
+                    ))}
+                  </View>
+                  
+                <View style={styles.priceContainer}>
+                  {item.boardingRate && item.boardingRate > 0 ? (
+                    <View style={styles.priceTag}>
+                      <Text style={styles.priceLabel}>Boarding</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+                        <Text style={styles.priceValue}>${Number(item.boardingRate).toFixed(0)}</Text>
+                        <Text style={styles.priceUnit}>/night</Text>
+                      </View>
+                    </View>
+                  ) : null }
+
+                  {item.walkingRate && item.walkingRate > 0 ? (
+                    <View style={styles.priceTag}>
+                      <Text style={styles.priceLabel}>Walking</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+                        <Text style={styles.priceValue}>${Number(item.walkingRate).toFixed(0)}</Text>
+                        <Text style={styles.priceUnit}>/hour</Text>
+                      </View>
+                    </View>
+                  ) : null}
+
+                  {item.sittingRate && item.sittingRate > 0 ? (
+                    <View style={styles.priceTag}>
+                      <Text style={styles.priceLabel}>Sitting</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+                        <Text style={styles.priceValue}>${Number(item.sittingRate).toFixed(0)}</Text>
+                        <Text style={styles.priceUnit}>/visit</Text>
+                      </View>
+                    </View>
+                  ) : null}
+
+                  {item.daycareRate && item.daycareRate > 0 ? (
+                    <View style={styles.priceTag}>
+                      <Text style={styles.priceLabel}>Daycare</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+                        <Text style={styles.priceValue}>${Number(item.daycareRate).toFixed(0)}</Text>
+                        <Text style={styles.priceUnit}>/day</Text>
+                      </View>
+                    </View>
+                  ) : null}
+                </View>
+                </View>
+                <TouchableOpacity 
+                  style={styles.favoriteButton}
+                  onPress={() => handleToggleFavorite(item.id)}
+                >
+                  <Heart 
+                    size={20} 
+                    color={favoriteIds.includes(item.id) ? "#FF3B30" : "#8E8E93"} 
+                    fill={favoriteIds.includes(item.id) ? "#FF3B30" : "transparent"} 
+                  />
+                </TouchableOpacity>
               </TouchableOpacity>
-            </TouchableOpacity>
-          </Animated.View>
-        )}
-      />
+            </Animated.View>
+          )}
+        />
+      )}
     </View>
   );
 }
@@ -364,6 +437,12 @@ const styles = StyleSheet.create({
     color: '#1A1A1A',
     marginBottom: 8,
   },
+  filterDescription: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 12,
+    color: '#8E8E93',
+    marginBottom: 16,
+  },
   filterScrollView: {
     marginBottom: 16,
   },
@@ -384,6 +463,30 @@ const styles = StyleSheet.create({
   },
   filterChipTextSelected: {
     color: '#FFFFFF',
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 16,
+    color: '#8E8E93',
+    marginTop: 12,
+  },
+  errorContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  errorText: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 16,
+    color: '#FF3B30',
+    textAlign: 'center',
   },
   sittersList: {
     padding: 16,
@@ -478,9 +581,36 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#8E8E93',
   },
-  priceText: {
+  priceContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 4,
+    gap: 6,
+  },
+  priceTag: {
+    backgroundColor: '#F2F9F8',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: '#E0F2F1',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  priceLabel: {
+    fontFamily: 'Poppins-Medium',
+    fontSize: 12,
+    color: '#63C7B8',
+    marginRight: 4,
+  },
+  priceValue: {
     fontFamily: 'Poppins-SemiBold',
-    fontSize: 16,
+    fontSize: 14,
+    color: '#63C7B8',
+  },
+  priceUnit: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 12,
     color: '#63C7B8',
   },
   favoriteButton: {
@@ -488,5 +618,22 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     right: 8,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 40,
+  },
+  emptyTitle: {
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: 18,
+    color: '#1A1A1A',
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 14,
+    color: '#8E8E93',
+    textAlign: 'center',
   },
 });

@@ -1,302 +1,157 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, Alert, Platform } from 'react-native';
+import React, { useEffect, useMemo } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { Star, MapPin, Heart } from 'lucide-react-native';
 import { Sitter } from '../types';
-import { supabase } from '../../../../lib/supabase';
+import { useSitterStore } from '../../../../stores/sitterStore';
 import { useAuthStore } from '../../../../stores/authStore';
-import * as Location from 'expo-location';
+import { useFavoriteStore } from '../../../../stores/favoriteStore';
 
 interface NearbySittersProps {
-  favorites: string[];
   onSitterPress?: (sitter: Sitter) => void;
-  onToggleFavorite?: (id: string) => void;
   animationDelay?: number;
-  maxDistance?: number;
+  maxDistance?: number; // Optional override for the user's maxDistance
 }
 
-// Function to calculate distance between two points using Haversine formula
-const calculateDistance = (
-  lat1: number, 
-  lon1: number, 
-  lat2: number, 
-  lon2: number
-): number => {
-  const R = 3958.8; // Earth's radius in miles
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = 
-    Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-    Math.sin(dLon/2) * Math.sin(dLon/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  const distance = R * c;
-  
-  return parseFloat(distance.toFixed(1)); // Return distance with 1 decimal place
-};
-
 export function NearbySitters({ 
-  favorites, 
   onSitterPress = () => {}, 
-  onToggleFavorite = () => {},
   animationDelay = 400,
   maxDistance
 }: NearbySittersProps) {
-  const [sitters, setSitters] = useState<Sitter[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { sitters, fetchSitters, isLoading, error, filterSitters } = useSitterStore();
   const { user } = useAuthStore();
-
-  // Use the user's maxDistance preference if no explicit maxDistance prop is provided
-  const effectiveMaxDistance = maxDistance || (user ? user.maxDistance : 50);
-
+  const { 
+    favoriteIds, 
+    fetchFavorites, 
+    toggleFavorite, 
+    isLoading: favoritesLoading 
+  } = useFavoriteStore();
+  
+  // The effective max distance is either the prop value (if provided) or the user's preference
+  const effectiveMaxDistance = maxDistance || (user ? user.maxDistance : 25);
+  
   useEffect(() => {
-    const fetchNearbySitters = async () => {
-      
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-      
-      try {
-        setLoading(true);
-        
-        // Variables to store location info (either from database or device)
-        let userLat: number = 0;
-        let userLon: number = 0;
-        let locationSource: string = 'unknown';
-        
-        // Step 1: Try to get user's primary address from the database
-        const { data: userAddress, error: userAddressError } = await supabase
-          .from('addresses')
-          .select('*')
-          .eq('profile_id', user.id)
-          .eq('is_primary', true);
-        
-        
-        // If no address found in addresses table, try useraddress table
-        let primaryAddress = null;
-        if (!userAddressError && userAddress && userAddress.length > 0) {
-          primaryAddress = userAddress[0];
-        } else {
-          const { data: userAddressAlt, error: userAddressAltError } = await supabase
-            .from('useraddress')
-            .select('*')
-            .eq('profile_id', user.id)
-            .eq('is_primary', true);
-            
-          
-          if (!userAddressAltError && userAddressAlt && userAddressAlt.length > 0) {
-            primaryAddress = userAddressAlt[0];
-          }
-        }
-        
-        // Now use primaryAddress if found in either table
-        if (primaryAddress) {
-          userLat = parseFloat(primaryAddress.latitude.toString());
-          userLon = parseFloat(primaryAddress.longitude.toString());
-          locationSource = 'database';
-          
+    // Only fetch favorites when component mounts
+    fetchFavorites();
+    // No need to include fetchFavorites in the dependency array
+    // as it should be a stable reference from the store
+  }, []);
+  
+  // Apply distance filter only when distance preference changes
+  useEffect(() => {
+    // Only filter if we already have sitters loaded to avoid unnecessary calls
+    if (sitters.length > 0 && !isLoading) {
+      filterSitters({ 
+        serviceTypes: [], 
+        priceRanges: [], 
+        maxDistance: effectiveMaxDistance 
+      });
+    }
+  }, [effectiveMaxDistance]);
+  
+  // Use useMemo to sort sitters by distance instead of doing it in the render method
+  const sortedSitters = useMemo(() => {
+    return [...sitters].sort((a, b) => a.distance - b.distance);
+  }, [sitters]);
 
-        } else {
-          // No address in either table, fall back to device location
-          
-          // Request location permissions
-          const { status } = await Location.requestForegroundPermissionsAsync();
-          
-          if (status !== 'granted') {
-            setSitters([]);
-            setError('Location permission is required to see nearby sitters');
-            setLoading(false);
-            return;
-          }
-          
-          // Get current location
-          try {
-            const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-            
-            // Check if the location is reasonable - avoid using test/simulator coordinates
-            // These coordinates are around Silicon Valley/Mountain View
-            const isCalifornia = 
-              location.coords.latitude > 36 && location.coords.latitude < 38 && 
-              location.coords.longitude < -121 && location.coords.longitude > -123;
-              
-            if (isCalifornia) {
+  const handleToggleFavorite = async (sitterId: string) => {
+    await toggleFavorite(sitterId);
+  };
 
-              userLat = 26.4563242; // Delray Beach coordinates
-              userLon = -80.0955221;
-              locationSource = 'default';
-            } else {
-              userLat = location.coords.latitude;
-              userLon = location.coords.longitude;
-              locationSource = 'device';
-            }
-            
-          } catch (locationError) {
-            // Add default location in Florida as fallback instead of showing error
-            userLat = 26.4563242; // Delray Beach coordinates
-            userLon = -80.0955221;
-            locationSource = 'default';
-            setSitters([]);
-            setError('Unable to determine your location. Using default location.');
-          }
-        }
-        
-        // SIMPLIFIED APPROACH: Get sitters and addresses in two separate queries
-        // and manually join them
-        
-        // Step 2: Get all sitters
-        const { data: allSitters, error: allSittersError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('role', 'sitter');
-          
-        
-        if (allSittersError) {
-          console.error('Error fetching sitters:', allSittersError);
-          throw allSittersError;
-        }
-        
-        // If no sitters in database, use mock data
-        if (!allSitters || allSitters.length === 0) {
-          const { sitters } = require('../data');
-          setSitters(sitters);
-          setLoading(false);
-          return;
-        }
-        
-          
-        if (allSittersError) {
-          console.error('Error fetching sitters:', allSittersError);
-          throw allSittersError;
-        }
-        
-        
-        // Step 4: Manually join sitters with their addresses
-        const sittersWithAddresses = [];
-        
-        for (const sitter of allSitters || []) {
-          // Skip if sitter is the current user
-          if (sitter.id === user.id) {
-            continue;
-          }
-          
-          // Query specifically for this sitter's address
-          const { data: sitterAddresses, error: addressError } = await supabase
-              .from('addresses')
-              .select('*')
-              .eq('profile_id', sitter.id)
-              .eq('is_primary', true);
-              
-
-          if (addressError) {
-            continue;
-          }
-            
-          
-          // Process if we found an address
-          const sitterAddress = sitterAddresses && sitterAddresses.length > 0 ? sitterAddresses[0] : null;
-          
-          if (sitterAddress) {
-            
-            const distance = calculateDistance(
-              userLat,
-              userLon,
-              parseFloat(sitterAddress.latitude),
-              parseFloat(sitterAddress.longitude)
-            );
-            
-            
-            // Add to our results if within distance
-            if (distance <= effectiveMaxDistance) {
-              sittersWithAddresses.push({
-                id: sitter.id,
-                name: sitter.name || 'Unknown Sitter',
-                rating: 4.8, // Default or fetch from reviews table
-                reviews: 24, // Default or fetch from reviews table
-                distance,
-                price: 35, // Default or fetch from pricing table
-                image: sitter.avatar_url || 'https://via.placeholder.com/150',
-                verified: true // Default or fetch from verification table
-              });
-            } else {
-            }
-          } 
-        }
-        
-        // Sort by distance
-        const nearbySitters = sittersWithAddresses.sort((a, b) => a.distance - b.distance);
-        
-
-        
-        setSitters(nearbySitters);
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchNearbySitters();
-  }, [user, effectiveMaxDistance]);
   return (
     <Animated.View entering={FadeInDown.delay(animationDelay).duration(600)}>
       <View style={styles.nearbyContainer}>
-        <Text style={styles.sectionTitle}>Nearby Sitters</Text>
+        <Text style={styles.sectionTitle}>Nearby Sitters ({effectiveMaxDistance} mile radius)</Text>
         
-        {loading ? (
+        {isLoading || favoritesLoading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#63C7B8" />
           </View>
         ) : error ? (
           <Text style={styles.errorText}>{error}</Text>
         ) : sitters.length === 0 ? (
-          <Text style={styles.emptyText}>
-            {error || `No sitters found within ${effectiveMaxDistance} miles of your location.`}
-          </Text>
-        ) : sitters.map((sitter, index) => (
-          <Animated.View 
-            key={sitter.id}
-            entering={FadeInRight.delay(index * 100).duration(500)}
-          >
+          <View style={styles.emptyStateContainer}>
+            <Text style={styles.emptyText}>
+              No sitters found within {effectiveMaxDistance} miles of your location.
+            </Text>
             <TouchableOpacity 
-              style={styles.sitterCard}
-              onPress={() => onSitterPress(sitter)}
+              style={styles.refreshButton}
+              onPress={() => fetchSitters()}
             >
-              <Image source={{ uri: sitter.image }} style={styles.sitterImage} />
-              <View style={styles.sitterInfo}>
-                <View style={styles.sitterNameRow}>
-                  <Text style={styles.sitterName}>{sitter.name}</Text>
-                  {sitter.verified && (
-                    <View style={styles.verifiedBadge}>
-                      <Text style={styles.verifiedText}>Verified</Text>
-                    </View>
-                  )}
-                </View>
-                <View style={styles.ratingContainer}>
-                  <Star size={16} color="#FFD700" fill="#FFD700" />
-                  <Text style={styles.ratingText}>{sitter.rating}</Text>
-                  <Text style={styles.reviewsText}>({sitter.reviews} reviews)</Text>
-                </View>
-                <View style={styles.locationContainer}>
-                  <MapPin size={14} color="#8E8E93" />
-                  <Text style={styles.locationText}>{sitter.distance} miles away</Text>
-                </View>
-                <Text style={styles.priceText}>${sitter.price}/night</Text>
-              </View>
-              <TouchableOpacity 
-                style={styles.favoriteButton}
-                onPress={() => onToggleFavorite(sitter.id)}
-              >
-                <Heart 
-                  size={20} 
-                  color={favorites.includes(sitter.id) ? "#FF3B30" : "#8E8E93"} 
-                  fill={favorites.includes(sitter.id) ? "#FF3B30" : "transparent"} 
-                />
-              </TouchableOpacity>
+              <Text style={styles.refreshButtonText}>Refresh</Text>
             </TouchableOpacity>
-          </Animated.View>
-        ))}
+          </View>
+        ) : (
+          // Use memoized sorted sitters array
+          sortedSitters.map((sitter, index) => (
+              <Animated.View 
+                key={sitter.id}
+                entering={FadeInRight.delay(index * 100).duration(500)}
+              >
+                <TouchableOpacity 
+                  style={styles.sitterCard}
+                  onPress={() => onSitterPress(sitter)}
+                >
+                  <Image source={{ uri: sitter.image }} style={styles.sitterImage} />
+                  <View style={styles.sitterInfo}>
+                    <View style={styles.sitterNameRow}>
+                      <Text style={styles.sitterName}>{sitter.name}</Text>
+                      {sitter.verified && (
+                        <View style={styles.verifiedBadge}>
+                          <Text style={styles.verifiedText}>Verified</Text>
+                        </View>
+                      )}
+                    </View>
+                    <View style={styles.ratingContainer}>
+                      <Star size={16} color="#FFD700" fill="#FFD700" />
+                      <Text style={styles.ratingText}>{sitter.rating}</Text>
+                      <Text style={styles.reviewsText}>({sitter.reviews} reviews)</Text>
+                    </View>
+                    <View style={styles.locationContainer}>
+                      <MapPin size={14} color="#8E8E93" />
+                      <Text style={styles.locationText}>
+                        <Text>{sitter.distance}</Text>
+                        <Text> miles away</Text>
+                      </Text>
+                    </View>
+                    
+                    <View style={styles.priceContainer}>
+                      <Text style={styles.priceText}>${sitter.price}<Text style={styles.priceUnit}>{sitter.priceLabel}</Text></Text>
+                    </View>
+                    
+                    <View style={styles.servicesContainer}>
+                      {sitter.services && sitter.services.length > 0 ? (
+                        <>
+                          {sitter.services.slice(0, 2).map((service, index) => (
+                            <View key={index} style={styles.serviceTag}>
+                              <Text style={styles.serviceTagText}>{service}</Text>
+                            </View>
+                          ))}
+                          {sitter.services.length > 2 && (
+                            <Text style={styles.moreServicesText}>+{sitter.services.length - 2} more</Text>
+                          )}
+                        </>
+                      ) : (
+                        <View style={styles.serviceTag}>
+                          <Text style={styles.serviceTagText}>No services</Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                  <TouchableOpacity 
+                    style={styles.favoriteButton}
+                    onPress={() => handleToggleFavorite(sitter.id)}
+                  >
+                    <Heart 
+                      size={20} 
+                      color={favoriteIds.includes(sitter.id) ? "#FF3B30" : "#8E8E93"} 
+                      fill={favoriteIds.includes(sitter.id) ? "#FF3B30" : "transparent"} 
+                    />
+                  </TouchableOpacity>
+                </TouchableOpacity>
+              </Animated.View>
+            ))
+        )}
       </View>
     </Animated.View>
   );
@@ -402,15 +257,65 @@ const styles = StyleSheet.create({
     color: '#8E8E93',
     marginLeft: 4,
   },
+  priceContainer: {
+    marginBottom: 4,
+  },
   priceText: {
     fontFamily: 'Poppins-SemiBold',
     fontSize: 16,
     color: '#63C7B8',
+  },
+  priceUnit: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 12,
+    color: '#8E8E93',
   },
   favoriteButton: {
     padding: 8,
     position: 'absolute',
     top: 8,
     right: 8,
+  },
+  servicesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+  },
+  serviceTag: {
+    backgroundColor: '#F2F2F7',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginRight: 4,
+    marginBottom: 4,
+  },
+  serviceTagText: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 10,
+    color: '#8E8E93',
+  },
+  moreServicesText: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 10,
+    color: '#63C7B8',
+    marginLeft: 4,
+  },
+  emptyStateContainer: {
+    padding: 24,
+    backgroundColor: '#F9F9F9',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  refreshButton: {
+    marginTop: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: '#63C7B8',
+    borderRadius: 8,
+  },
+  refreshButtonText: {
+    color: '#FFFFFF',
+    fontFamily: 'Poppins-Medium',
+    fontSize: 14,
   },
 }); 

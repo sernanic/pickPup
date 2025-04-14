@@ -6,9 +6,13 @@
   "scripts": {
     "dev": "EXPO_NO_TELEMETRY=1 expo start",
     "build:web": "expo export --platform web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "list": "node scripts/dev.js list",
+    "generate": "node scripts/dev.js generate",
+    "parse-prd": "node scripts/dev.js parse-prd"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
     "@expo/vector-icons": "^14.0.2",
     "@hookform/resolvers": "^4.1.2",
     "@lucide/lab": "^0.1.2",
@@ -19,9 +23,14 @@
     "@react-navigation/bottom-tabs": "^7.2.0",
     "@react-navigation/native": "^7.0.14",
     "@stripe/stripe-react-native": "^0.43.0",
-    "@supabase/supabase-js": "^2.49.1",
+    "@supabase/supabase-js": "^2.49.4",
     "base64-arraybuffer": "^1.0.2",
+    "boxen": "^7.1.1",
+    "chalk": "^5.3.0",
+    "cli-table3": "^0.6.3",
+    "commander": "^11.1.0",
     "date-fns": "^4.1.0",
+    "dotenv": "^16.3.1",
     "expo": "52.0.33",
     "expo-blur": "^14.0.3",
     "expo-constants": "^17.0.5",
@@ -32,18 +41,24 @@
     "expo-linear-gradient": "^14.0.2",
     "expo-linking": "^7.0.5",
     "expo-location": "~18.0.8",
+    "expo-notifications": "~0.29.14",
     "expo-router": "4.0.17",
     "expo-splash-screen": "^0.29.21",
     "expo-status-bar": "^2.0.1",
     "expo-symbols": "^0.2.2",
     "expo-system-ui": "^4.0.7",
     "expo-web-browser": "^14.0.2",
+    "figlet": "^1.7.0",
+    "gradient-string": "^2.0.2",
     "lucide-react-native": "^0.475.0",
+    "openai": "^4.86.1",
+    "ora": "^7.0.1",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "react-hook-form": "^7.54.2",
     "react-native": "0.76.6",
     "react-native-calendars": "^1.1310.0",
+    "react-native-dotenv": "^3.4.11",
     "react-native-gesture-handler": "^2.23.0",
     "react-native-get-random-values": "^1.11.0",
     "react-native-google-places-autocomplete": "^2.5.7",
@@ -56,6 +71,7 @@
     "react-native-url-polyfill": "^2.0.0",
     "react-native-web": "^0.19.13",
     "react-native-webview": "13.12.5",
+    "task-master-ai": "^0.9.30",
     "uuid": "^11.1.0",
     "yup": "^1.6.1",
     "zustand": "^5.0.3"
@@ -66,5 +82,6 @@
     "@types/react-native-calendars": "^1.1264.7",
     "supabase": "^2.19.7",
     "typescript": "^5.3.3"
-  }
+  },
+  "type": "module"
 }
