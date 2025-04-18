@@ -69,43 +69,48 @@ export function FeaturedSitters({
                 style={styles.featuredCard}
                 onPress={() => handleSitterPress(item)}
               >
-                <Image source={{ uri: item.coverImage }} style={styles.featuredCoverImage} />
+                {item.verified && (
+                  <View style={styles.trustedBadge}>
+                    <Text style={styles.trustedText}>Trusted +</Text>
+                  </View>
+                )}
+                
                 <View style={styles.featuredContent}>
-                  <Image source={{ uri: item.image }} style={styles.featuredSitterImage} />
+                  <Image 
+                    source={{ uri: item.image || 'https://images.unsplash.com/photo-1568640347023-a616a30bc3bd?q=80&w=400&auto=format&fit=crop' }} 
+                    style={styles.featuredSitterImage} 
+                  />
+                  
                   <View style={styles.featuredInfo}>
-                    <View style={styles.featuredNameRow}>
-                      <Text style={styles.featuredSitterName}>{item.name}</Text>
-                      {item.verified && (
-                        <View style={styles.verifiedBadge}>
-                          <Text style={styles.verifiedText}>Verified</Text>
-                        </View>
-                      )}
-                    </View>
+                    <Text style={styles.featuredSitterName}>{item.name} </Text>
+                    
                     <View style={styles.ratingContainer}>
-                      <Star size={16} color="#FFD700" fill="#FFD700" />
-                      <Text style={styles.ratingText}>{item.rating}</Text>
-                      <Text style={styles.reviewsText}>({item.reviews} reviews)</Text>
+                      <View style={styles.starsContainer}>
+                        {[...Array(5)].map((_, i) => (
+                          <Star 
+                            key={i}
+                            size={16} 
+                            color="#FFD700" 
+                            fill={i < Math.floor(item.rating) ? "#FFD700" : "transparent"}
+                          />
+                        ))}
+                      </View>
+                      <Text style={styles.reviewsText}>({item.reviews} review{item.reviews !== 1 ? 's' : ''})</Text>
                     </View>
                     
                     <View style={styles.priceContainer}>
-                      <Text style={styles.priceText}>${item.price}<Text style={styles.priceUnit}>{item.priceLabel}</Text></Text>
+                      <Text style={styles.priceText}>${item.price}<Text style={styles.priceUnit}>/night</Text></Text>
                     </View>
                     
                     <View style={styles.servicesContainer}>
-                      {item.services && item.services.length > 0 ? (
-                        <>
-                          {item.services.slice(0, 2).map((service, index) => (
-                            <View key={index} style={styles.serviceTag}>
-                              <Text style={styles.serviceTagText}>{service}</Text>
-                            </View>
-                          ))}
-                          {item.services.length > 2 && (
-                            <Text style={styles.moreServicesText}>+{item.services.length - 2} more</Text>
-                          )}
-                        </>
-                      ) : (
+                      {item.services && item.services.includes('Boarding') && (
                         <View style={styles.serviceTag}>
-                          <Text style={styles.serviceTagText}>No services</Text>
+                          <Text style={styles.serviceTagText}>Boarding</Text>
+                        </View>
+                      )}
+                      {item.services && item.services.includes('Walking') && (
+                        <View style={styles.serviceTag}>
+                          <Text style={styles.serviceTagText}>Walking</Text>
                         </View>
                       )}
                     </View>
@@ -138,76 +143,67 @@ const styles = StyleSheet.create({
     paddingRight: 16,
   },
   featuredCard: {
-    width: width * 0.7,
+    width: width * 0.85,
     marginRight: 16,
-    marginBottom: 8, // Added bottom margin to make shadow visible on Android
-    borderRadius: 16,
+    marginBottom: 8,
+    borderRadius: 24,
     backgroundColor: '#FFFFFF',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowRadius: 10,
     elevation: 4,
-    overflow: 'hidden',
+    borderWidth: 2.5,
+    borderColor: '#63C7B8',
+    padding: 16,
+    position: 'relative',
   },
-  featuredCoverImage: {
-    width: '100%',
-    height: 150,
+  trustedBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    backgroundColor: '#E1F5F3',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  trustedText: {
+    fontFamily: 'Poppins-Medium',
+    fontSize: 12,
+    color: '#63C7B8',
   },
   featuredContent: {
     flexDirection: 'row',
-    padding: 16,
     alignItems: 'center',
   },
   featuredSitterImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     marginRight: 16,
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
-    marginTop: -40,
   },
   featuredInfo: {
     flex: 1,
   },
-  featuredNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
   featuredSitterName: {
     fontFamily: 'Poppins-SemiBold',
-    fontSize: 16,
+    fontSize: 18,
+    fontWeight: 'bold',
     color: '#1A1A1A',
-    marginRight: 8,
+    marginBottom: 4,
   },
-  verifiedBadge: {
-    backgroundColor: '#E1F5FE',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  verifiedText: {
-    fontFamily: 'Poppins-Medium',
-    fontSize: 10,
-    color: '#0288D1',
+  starsContainer: {
+    flexDirection: 'row',
+    marginRight: 6,
   },
   ratingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
-  },
-  ratingText: {
-    fontFamily: 'Poppins-Medium',
-    fontSize: 14,
-    color: '#1A1A1A',
-    marginLeft: 4,
-    marginRight: 4,
+    marginBottom: 8,
   },
   reviewsText: {
     fontFamily: 'Poppins-Regular',
-    fontSize: 12,
+    fontSize: 14,
     color: '#8E8E93',
   },
   loadingContainer: {
@@ -245,35 +241,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   serviceTag: {
-    backgroundColor: '#F2F2F7',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginRight: 4,
-    marginBottom: 4,
+    backgroundColor: '#E5F8F6',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginRight: 8,
   },
   serviceTagText: {
-    fontFamily: 'Poppins-Regular',
-    fontSize: 10,
-    color: '#8E8E93',
-  },
-  moreServicesText: {
-    fontFamily: 'Poppins-Regular',
-    fontSize: 10,
+    fontFamily: 'Poppins-Medium',
+    fontSize: 12,
     color: '#63C7B8',
-    marginLeft: 4,
   },
   priceContainer: {
-    marginBottom: 4,
+    marginBottom: 10,
   },
   priceText: {
     fontFamily: 'Poppins-SemiBold',
-    fontSize: 14,
+    fontSize: 16,
     color: '#63C7B8',
   },
   priceUnit: {
     fontFamily: 'Poppins-Regular',
-    fontSize: 12,
-    color: '#8E8E93',
+    fontSize: 14,
+    color: '#63C7B8',
   },
 }); 

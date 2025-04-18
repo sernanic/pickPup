@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, KeyboardAvo
 import { Link, router } from 'expo-router';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react-native';
 import { useAuthStore } from '../stores/authStore';
+import { supabase } from '../lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function LoginScreen() {
@@ -11,6 +12,16 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   
   const { login, isLoading, error } = useAuthStore();
+
+  // Social login handlers
+  const handleGoogleSignIn = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
+    if (error) Alert.alert('Error', error.message);
+  };
+  const handleFacebookSignIn = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({ provider: 'facebook' });
+    if (error) Alert.alert('Error', error.message);
+  };
 
   // Clear any previous errors when component renders
   useEffect(() => {
@@ -123,29 +134,20 @@ export default function LoginScreen() {
           </LinearGradient>
         </TouchableOpacity>
 
+        <View style={styles.socialButtonsContainer}>
+          <TouchableOpacity style={styles.socialButton} onPress={handleGoogleSignIn}>
+            <Text style={styles.socialButtonText}>Sign in with Google</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.socialButton} onPress={handleFacebookSignIn}>
+            <Text style={styles.socialButtonText}>Sign in with Facebook</Text>
+          </TouchableOpacity>
+        </View>
+
         <View style={styles.dividerContainer}>
           <View style={styles.divider} />
           <Text style={styles.dividerText}>OR</Text>
           <View style={styles.divider} />
         </View>
-
-        {/* <View style={styles.socialButtonsContainer}>
-          <TouchableOpacity style={styles.socialButton}>
-            <Image
-              source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Google_%22G%22_Logo.svg/1200px-Google_%22G%22_Logo.svg.png' }}
-              style={styles.socialIcon}
-            />
-            <Text style={styles.socialButtonText}>Google</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.socialButton}>
-            <Image
-              source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b8/2021_Facebook_icon.svg/1200px-2021_Facebook_icon.svg.png' }}
-              style={styles.socialIcon}
-            />
-            <Text style={styles.socialButtonText}>Facebook</Text>
-          </TouchableOpacity>
-        </View> */}
 
         <View style={styles.signupContainer}>
           <Text style={styles.signupText}>Don't have an account? </Text>
@@ -276,29 +278,18 @@ const styles = StyleSheet.create({
   socialButtonsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 40,
+    width: '100%',
+    marginVertical: 16,
   },
   socialButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flex: 0.48,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E0E7FF',
     borderRadius: 16,
     height: 56,
-    paddingHorizontal: 24,
-    flex: 0.48,
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  socialIcon: {
-    width: 24,
-    height: 24,
-    marginRight: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   socialButtonText: {
     fontFamily: 'Poppins-Medium',
@@ -321,5 +312,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#63C7B8',
   },
-
 });

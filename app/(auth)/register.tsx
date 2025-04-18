@@ -42,7 +42,8 @@ export default function RegisterScreen() {
     
     try {
       await register(email, password, name, userType);
-      // If there's a stored error in the authStore, it will be displayed below
+      // On success, navigate to pup onboarding
+      router.replace('/(auth)/pup-onboarding');
     } catch (err: any) {
       console.error('Registration failed:', err);
       Alert.alert('Registration Error', err.message || 'An unexpected error occurred');

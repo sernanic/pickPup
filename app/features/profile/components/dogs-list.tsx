@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, Image, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Pet } from '../types';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 
 interface DogsListProps {
   pets: Pet[];
@@ -11,6 +11,8 @@ interface DogsListProps {
 }
 
 export function DogsList({ pets, onDogPress, onAddDogPress }: DogsListProps) {
+  const { onboarding } = useLocalSearchParams<{ onboarding?: string }>();
+
   const handleAddDog = () => {
     if (onAddDogPress) {
       onAddDogPress();
@@ -21,52 +23,63 @@ export function DogsList({ pets, onDogPress, onAddDogPress }: DogsListProps) {
   };
 
   return (
-    <Animated.View 
-      style={styles.section}
-      entering={FadeInDown.delay(200).duration(500)}
-    >
-      <Text style={styles.sectionTitle}>My Pets</Text>
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.dogsContainer}
+    <View style={styles.wrapper}>
+      <Animated.View 
+        style={styles.section}
+        entering={FadeInDown.delay(200).duration(500)}
       >
-        {pets.length > 0 ? (
-          <>
-            {pets.map(pet => (
-              <TouchableOpacity 
-                key={pet.id} 
-                style={styles.dogCard}
-                onPress={() => onDogPress?.(pet)}
-              >
-                <Image 
-                  source={{ 
-                    uri: pet.image_url || 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?q=80&w=200&auto=format&fit=crop' 
-                  }} 
-                  style={styles.dogImage} 
-                />
-                <Text style={styles.dogName}>{pet.name}</Text>
-                <Text style={styles.dogDetails}>
-                  {pet.breed || 'Mixed'}, {pet.age || '?'} years
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </>
-        ) : (
-          <Text style={styles.noPetsText}>No pets added yet</Text>
-        )}
-        <TouchableOpacity style={styles.addDogCard} onPress={handleAddDog}>
-          <View style={styles.addDogIcon}>
-            <Text style={styles.plusIcon}>+</Text>
-          </View>
-          <Text style={styles.addDogText}>Add Pet</Text>
+        <Text style={styles.sectionTitle}>My Pets</Text>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.dogsContainer}
+        >
+          {pets.length > 0 ? (
+            <>
+              {pets.map(pet => (
+                <TouchableOpacity 
+                  key={pet.id} 
+                  style={styles.dogCard}
+                  onPress={() => onDogPress?.(pet)}
+                >
+                  <Image 
+                    source={{ 
+                      uri: pet.image_url || 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?q=80&w=200&auto=format&fit=crop' 
+                    }} 
+                    style={styles.dogImage} 
+                  />
+                  <Text style={styles.dogName}>{pet.name}</Text>
+                  <Text style={styles.dogDetails}>
+                    {pet.breed || 'Mixed'}, {pet.age || '?'} years
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </>
+          ) : (
+            <Text style={styles.noPetsText}>No pets added yet</Text>
+          )}
+          <TouchableOpacity style={styles.addDogCard} onPress={handleAddDog}>
+            <View style={styles.addDogIcon}>
+              <Text style={styles.plusIcon}>+</Text>
+            </View>
+            <Text style={styles.addDogText}>Add Pet</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </Animated.View>
+      {onboarding === 'true' && (
+        <TouchableOpacity style={styles.nextButton} onPress={() => router.replace('/(tabs)')}>
+          <Text style={styles.nextButtonText}>Next</Text>
         </TouchableOpacity>
-      </ScrollView>
-    </Animated.View>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  wrapper: {
+    flex: 1,
+    position: 'relative',
+  },
   section: {
     marginBottom: 24,
   },
@@ -132,4 +145,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#63C7B8',
   },
-}); 
+  nextButton: {
+    position: 'absolute',
+    bottom: '5%',
+    alignSelf: 'center',
+    backgroundColor: '#63C7B8',
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    borderRadius: 16,
+    width: '80%',
+    alignItems: 'center',
+  },
+  nextButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    textAlign: 'center',
+  },
+});

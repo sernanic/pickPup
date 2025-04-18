@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator, ImageBackground } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, Send } from 'lucide-react-native';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../stores/authStore';
@@ -218,114 +218,127 @@ export default function ConversationScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { paddingTop: insets.top }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-    >
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <ChevronLeft size={24} color="#1A1A1A" />
-        </TouchableOpacity>
-        
-        <View style={styles.profileContainer}>
-          <Image
-            source={thread?.otherUserProfile?.avatar_url 
-              ? { uri: thread.otherUserProfile.avatar_url }
-              : require('../../assets/images/default-avatar.png')
-            }
-            style={styles.avatar}
-            contentFit="cover"
-          />
-          <Text style={styles.name}>{thread?.otherUserProfile?.name || 'User'}</Text>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <KeyboardAvoidingView 
+        style={styles.container} 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <ImageBackground source={require('../../assets/images/conversationBg.png')} style={styles.background}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <ChevronLeft size={24} color="#1A1A1A" />
+          </TouchableOpacity>
+          
+          <View style={styles.profileContainer}>
+            <Image
+              source={thread?.otherUserProfile?.avatar_url 
+                ? { uri: thread.otherUserProfile.avatar_url }
+                : require('../../assets/images/default-avatar.png')
+              }
+              style={styles.avatar}
+              contentFit="cover"
+            />
+            <Text style={styles.name}>{thread?.otherUserProfile?.name || 'User'}</Text>
+          </View>
+          
+          <View style={{ width: 40 }} />
         </View>
-        
-        <View style={{ width: 40 }} />
-      </View>
 
-      {/* Messages */}
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.messagesList}
-        renderItem={({ item, index }) => {
-          const isMine = item.sender_id === user?.id;
-          return (
-            <Animated.View
-              entering={FadeInUp.delay(index * 50).duration(300)}
-              style={[
-                styles.messageContainer,
-                isMine ? styles.mineContainer : styles.theirsContainer
-              ]}
-            >
-              <View
+        {/* Messages */}
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.messagesList}
+          renderItem={({ item, index }) => {
+            const isMine = item.sender_id === user?.id;
+            return (
+              <Animated.View
+                entering={FadeInUp.delay(index * 50).duration(300)}
                 style={[
-                  styles.messageBubble,
-                  isMine ? styles.mineBubble : styles.theirsBubble
+                  styles.messageContainer,
+                  isMine ? styles.mineContainer : styles.theirsContainer
                 ]}
               >
-                <Text style={[
-                  styles.messageText,
-                  isMine ? styles.mineText : styles.theirsText
-                ]}>
-                  {item.content}
-                </Text>
-                <Text style={[
-                  styles.timeText,
-                  isMine ? styles.mineTimeText : styles.theirsTimeText
-                ]}>
-                  {formatMessageTime(item.created_at)}
-                </Text>
-              </View>
-            </Animated.View>
-          );
-        }}
-      />
-
-      {/* Input */}
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.input}
-          placeholder="Type a message..."
-          value={newMessage}
-          onChangeText={setNewMessage}
-          multiline
-          maxLength={500}
+                <View
+                  style={[
+                    styles.messageBubble,
+                    isMine ? styles.mineBubble : styles.theirsBubble
+                  ]}
+                >
+                  <Text style={[
+                    styles.messageText,
+                    isMine ? styles.mineText : styles.theirsText
+                  ]}>
+                    {item.content}
+                  </Text>
+                  <Text style={[
+                    styles.timeText,
+                    isMine ? styles.mineTimeText : styles.theirsTimeText
+                  ]}>
+                    {formatMessageTime(item.created_at)}
+                  </Text>
+                </View>
+              </Animated.View>
+            );
+          }}
         />
-        <TouchableOpacity
-          style={[
-            styles.sendButton,
-            (!newMessage.trim() || sending) && styles.disabledButton
-          ]}
-          onPress={handleSendMessage}
-          disabled={!newMessage.trim() || sending}
-        >
-          {sending ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          ) : (
-            <Send size={20} color="#FFFFFF" />
-          )}
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+
+        {/* Input */}
+        <View style={styles.inputContainer}>
+          <TextInput
+            style={styles.input}
+            placeholder="Type a message..."
+            value={newMessage}
+            onChangeText={setNewMessage}
+            multiline
+            maxLength={500}
+          />
+          <TouchableOpacity
+            style={[
+              styles.sendButton,
+              (!newMessage.trim() || sending) && styles.disabledButton
+            ]}
+            onPress={handleSendMessage}
+            disabled={!newMessage.trim() || sending}
+          >
+            {sending ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Send size={20} color="#FFFFFF" />
+            )}
+          </TouchableOpacity>
+        </View>
+        </ImageBackground>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
   container: {
     flex: 1,
-    backgroundColor: '#F7F7F7',
+    backgroundColor: 'transparent',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#F7F7F7',
+  },
+  background: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
   },
   header: {
     flexDirection: 'row',

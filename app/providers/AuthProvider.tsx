@@ -6,6 +6,8 @@ import { View, ActivityIndicator, Text } from 'react-native';
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { user, isLoading, error, initialized } = useAuthStore();
   const segments = useSegments();
+  // Allow new users to complete pup onboarding
+  const isOnboarding = segments.includes('pup-onboarding');
 
   useEffect(() => {
     // Only run navigation logic after auth initialization is complete
@@ -14,13 +16,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const inAuthGroup = segments[0] === '(auth)';
     
     if (!user && !inAuthGroup) {
-      // Redirect to login if not authenticated
-      router.replace('/login');
-    } else if (user && inAuthGroup) {
-      // Redirect to home if authenticated
+      // Redirect to welcome if not authenticated
+      router.replace('/welcome');
+    } else if (user && inAuthGroup && !isOnboarding) {
+      // Redirect to home if authenticated (except onboarding)
       router.replace('/(tabs)');
     }
-  }, [user, segments, initialized]);
+  }, [user, segments, initialized, isOnboarding]);
 
   if (isLoading && !initialized) {
     return (
