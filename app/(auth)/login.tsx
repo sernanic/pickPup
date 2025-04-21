@@ -10,7 +10,8 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  
+  const [formError, setFormError] = useState<string | null>(null);
+
   const { login, isLoading, error } = useAuthStore();
 
   // Social login handlers
@@ -31,15 +32,16 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!email.trim()) {
-      Alert.alert('Login Error', 'Please enter your email');
+      setFormError('Please enter your email');
       return;
     }
-    
+
     if (!password.trim()) {
-      Alert.alert('Login Error', 'Please enter your password');
+      setFormError('Please enter your password');
       return;
     }
-    
+    setFormError(null);
+
     try {
       await login(email, password);
       // Don't check error state here - it's updated asynchronously
@@ -47,11 +49,10 @@ export default function LoginScreen() {
       console.error('Login error:', err);
     }
   };
-  
-  // Show error alert if error state exists
+
   useEffect(() => {
     if (error) {
-      Alert.alert('Login Error', error);
+      setFormError(error);
     }
   }, [error]);
 
@@ -116,6 +117,8 @@ export default function LoginScreen() {
             <Text style={styles.forgotPassword}>Forgot Password?</Text>
           </TouchableOpacity>
         </Link>
+
+        {formError && <Text style={styles.errorMessage}>{formError}</Text>}
 
         <TouchableOpacity
           style={[styles.button, isLoading && styles.buttonDisabled]}
@@ -311,5 +314,12 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-SemiBold',
     fontSize: 16,
     color: '#63C7B8',
+  },
+  errorMessage: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 14,
+    color: '#FF3B30',
+    marginBottom: 16,
+    textAlign: 'center',
   },
 });

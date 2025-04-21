@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react';
-import { View, StyleSheet } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { View, StyleSheet, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
+import { useLocalSearchParams, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { format, parseISO, eachDayOfInterval } from 'date-fns';
-import { DateData } from 'react-native-calendars';
+import { DateData, Calendar } from 'react-native-calendars';
+import { supabase } from '@/app/lib/supabase';
 
 // Import components
 import AvailabilityHeader from './components/AvailabilityHeader';
 import TabNavigator from './components/TabNavigator';
-import WalkingSection from './components/WalkingSection';
 import BoardingSection from './components/BoardingSection';
 import { LoadingState, ErrorState } from './components/LoadingAndErrorStates';
 
@@ -37,6 +37,12 @@ export default function AvailabilityScreen() {
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   
+  // Walking calendar state
+  const [walkingAvailableDates, setWalkingAvailableDates] = useState<string[]>([]);
+  const [walkingMarkedDates, setWalkingMarkedDates] = useState<{[date: string]: any}>({});
+  const [walkingSelectedDate, setWalkingSelectedDate] = useState<string | null>(null);
+  const [calendarLoading, setCalendarLoading] = useState(false);
+  
   // Add the fetchData and other methods here
   useEffect(() => {
     const fetchData = async () => {
@@ -61,6 +67,7 @@ export default function AvailabilityScreen() {
     };
     
     fetchData();
+    fetchWalkingDates(); // Load calendar data for walking tab
   }, [params.id]);
   
   useEffect(() => {
@@ -218,6 +225,163 @@ export default function AvailabilityScreen() {
       setSelectedEndDate(null);
     }
   };
+
+  // Format date for display
+  const formatDateDisplay = (dateString: string) => {
+    if (!dateString) return '';
+    
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        return dateString; // Return as is if invalid
+      }
+      return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return dateString;
+    }
+  };
+
+  // Handle walking date selection
+  const handleWalkingDayPress = (day: DateData) => {
+    const dateString = day.dateString;
+    
+    // Check if this date is available
+    if (!walkingAvailableDates.includes(dateString)) {
+      Toast.show({ 
+        type: 'info', 
+        text1: 'Date Unavailable', 
+        text2: 'The sitter is not available on this date.' 
+      });
+      return;
+    }
+    
+    setWalkingSelectedDate(dateString);
+    
+    // Update the marked dates
+    const updatedMarkedDates = {...walkingMarkedDates};
+    
+    // Remove previous selection styling
+    Object.keys(updatedMarkedDates).forEach(date => {
+      if (updatedMarkedDates[date].selected) {
+        updatedMarkedDates[date] = {
+          ...updatedMarkedDates[date],
+          selected: false
+        };
+      }
+    });
+    
+    // Add new selection
+    updatedMarkedDates[dateString] = {
+      ...updatedMarkedDates[dateString],
+      selected: true,
+      selectedColor: '#63C7B8'
+    };
+    
+    setWalkingMarkedDates(updatedMarkedDates);
+  };
+
+  // Fetch available walking dates
+  const fetchWalkingDates = async () => {
+    if (!params.id) return;
+    
+    try {
+      setCalendarLoading(true);
+      
+      // Fetch the sitter's weekly availability
+      const { data: availabilityData, error: availabilityError } = await supabase
+        .from('sitter_weekly_availability')
+        .select('weekday, start_time, end_time')
+        .eq('sitter_id', params.id as string);
+      
+      if (availabilityError) throw availabilityError;
+      
+      if (!availabilityData || availabilityData.length === 0) {
+        setWalkingAvailableDates([]);
+        setWalkingMarkedDates({});
+        return;
+      }
+
+      // Create a map of weekday to availability
+      const weekdayAvailability = availabilityData.reduce((acc, curr) => {
+        acc[curr.weekday] = true;
+        return acc;
+      }, {} as Record<number, boolean>);
+      
+      // Get current date
+      const today = new Date();
+      
+      // Generate dates for the next 60 days
+      const allDates: string[] = [];
+      
+      for (let i = 0; i < 60; i++) {
+        const tempDate = new Date(today);
+        tempDate.setDate(today.getDate() + i);
+        
+        const weekday = tempDate.getDay(); 
+        
+        if (weekdayAvailability[weekday]) {
+          const dateString = format(tempDate, 'yyyy-MM-dd');
+          allDates.push(dateString);
+        }
+      }
+      
+      setWalkingAvailableDates(allDates);
+      
+      // Mark available dates on calendar
+      const newMarkedDates: {[date: string]: any} = {};
+      const today_str = format(new Date(), 'yyyy-MM-dd');
+      
+      // Mark today
+      newMarkedDates[today_str] = { 
+        marked: true, 
+        dotColor: '#FF6B6B'
+      };
+      
+      // Mark available dates
+      allDates.forEach(date => {
+        newMarkedDates[date] = {
+          ...newMarkedDates[date],
+          marked: true,
+          dotColor: '#63C7B8'
+        };
+      });
+      
+      setWalkingMarkedDates(newMarkedDates);
+    } catch (error) {
+      console.error('Error fetching walking dates:', error);
+      Toast.show({ 
+        type: 'error', 
+        text1: 'Error', 
+        text2: 'Failed to load calendar data' 
+      });
+    } finally {
+      setCalendarLoading(false);
+    }
+  };
+  
+  // Navigate directly to time selection
+  const handleWalkingTimeSelection = () => {
+    if (!params.id || !walkingSelectedDate) {
+      Toast.show({ 
+        type: 'error', 
+        text1: 'Error', 
+        text2: walkingSelectedDate ? 'Sitter information is missing.' : 'Please select a date first.' 
+      });
+      return;
+    }
+    
+    router.push({
+      pathname: '/booking/select-time',
+      params: {
+        sitterId: params.id as string,
+        serviceId: 'walking',
+        date: walkingSelectedDate,
+        weekday: new Date(walkingSelectedDate).getDay().toString()
+      },
+    });
+  };
+
   if (loading) {
     return <LoadingState />;
   }
@@ -239,12 +403,51 @@ export default function AvailabilityScreen() {
       />
       
       {activeTab === 'walking' && (
-        <WalkingSection
-          walkingSlots={walkingSlots}
-          filteredWalkingSlots={filteredWalkingSlots}
-          sitterId={params.id as string}
-          onFilterChange={handleFilterChange}
-        />
+        <View style={styles.walkingContainer}>
+          <Text style={styles.walkingTitle}>Dog Walking Service</Text>
+          
+          {calendarLoading ? (
+            <View style={styles.calendarLoading}>
+              <ActivityIndicator size="large" color="#63C7B8" />
+              <Text style={styles.loadingText}>Loading available dates...</Text>
+            </View>
+          ) : (
+            <View style={styles.calendarWrapper}>
+              <Text style={styles.calendarInstruction}>
+                Available days are marked with dots. Select a date to continue.
+              </Text>
+              
+              <Calendar
+                minDate={format(new Date(), 'yyyy-MM-dd')}
+                onDayPress={handleWalkingDayPress}
+                markedDates={walkingMarkedDates}
+                theme={{
+                  todayTextColor: '#63C7B8',
+                  arrowColor: '#63C7B8',
+                  selectedDayBackgroundColor: '#63C7B8',
+                  selectedDayTextColor: '#FFFFFF',
+                }}
+                style={styles.calendar}
+              />
+              
+              {walkingSelectedDate && (
+                <View style={styles.selectedDateInfo}>
+                  <Text style={styles.selectedDateText}>
+                    Selected: {formatDateDisplay(walkingSelectedDate)}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
+          
+          <TouchableOpacity 
+            style={[styles.bookButton, !walkingSelectedDate && styles.disabledButton]}
+            onPress={handleWalkingTimeSelection}
+            disabled={!walkingSelectedDate}
+          >
+            <Text style={styles.bookButtonText}>Select Time</Text>
+          </TouchableOpacity>
+        </View>
       )}
       
       {activeTab === 'boarding' && (
@@ -267,5 +470,70 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+  },
+  walkingContainer: {
+    flex: 1,
+    padding: 16,
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  walkingTitle: {
+    fontSize: 22,
+    fontWeight: '600',
+    color: '#1A1A1A',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  calendarWrapper: {
+    flex: 1,
+  },
+  calendarInstruction: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginVertical: 10,
+    paddingHorizontal: 15,
+  },
+  calendar: {
+    borderWidth: 1,
+    borderColor: '#EEE',
+    borderRadius: 8,
+    marginBottom: 15,
+  },
+  selectedDateInfo: {
+    alignItems: 'center',
+    paddingVertical: 10,
+    marginBottom: 10,
+  },
+  selectedDateText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#333',
+  },
+  calendarLoading: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#8E8E93',
+  },
+  bookButton: {
+    backgroundColor: '#63C7B8',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 'auto',
+  },
+  disabledButton: {
+    backgroundColor: '#B0E0D9',
+    opacity: 0.7,
+  },
+  bookButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

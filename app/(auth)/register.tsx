@@ -11,32 +11,34 @@ export default function RegisterScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   // All users will be dog owners by default
   const userType: UserRole = 'owner';
   
   const { register, isLoading, error } = useAuthStore();
 
   const handleRegister = async () => {
+    setFormError(null);
     if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
+      setFormError('Passwords do not match');
       return;
     }
     
     if (!name.trim() || !email.trim() || !password.trim()) {
-      Alert.alert('Error', 'Please fill in all fields');
+      setFormError('Please fill in all fields');
       return;
     }
     
     // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      Alert.alert('Error', 'Please enter a valid email address');
+      setFormError('Please enter a valid email address');
       return;
     }
     
     // Password strength check
     if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
+      setFormError('Password must be at least 6 characters');
       return;
     }
     
@@ -46,7 +48,7 @@ export default function RegisterScreen() {
       router.replace('/(auth)/pup-onboarding');
     } catch (err: any) {
       console.error('Registration failed:', err);
-      Alert.alert('Registration Error', err.message || 'An unexpected error occurred');
+      setFormError(err.message || 'An unexpected error occurred');
     }
   };
 
@@ -148,9 +150,9 @@ export default function RegisterScreen() {
           </Text>
         </TouchableOpacity>
 
-        {error ? (
+        {(formError || error) ? (
           <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>{error}</Text>
+            <Text style={styles.errorText}>{formError || error}</Text>
           </View>
         ) : null}
 

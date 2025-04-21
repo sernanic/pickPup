@@ -22,6 +22,13 @@ type SitterRates = {
   updated_at: string;
 };
 
+// Add this type definition after the SitterRates type
+type PaymentIntentResult = {
+  paymentIntentId: string;
+  amount: number;
+  bookingId: string;
+};
+
 export default function ConfirmBookingScreen() {
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
@@ -32,6 +39,7 @@ export default function ConfirmBookingScreen() {
   const [isLoadingPaymentMethods, setIsLoadingPaymentMethods] = useState(false);
   const [sitterRates, setSitterRates] = useState<SitterRates | null>(null);
   const [isLoadingRates, setIsLoadingRates] = useState(true);
+  const [showingAlert, setShowingAlert] = useState(false); // Track if we're showing an alert
   
   // Initialize Stripe hooks
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
@@ -39,11 +47,11 @@ export default function ConfirmBookingScreen() {
   // Parse the data from the previous screen
   const mode = params.mode as 'walking' | 'boarding';
   const sitterId = params.sitterId as string;
+  const serviceId = params.serviceId as string;
   const selectedPetsJson = params.selectedPets as string;
   const selectedPets = selectedPetsJson ? JSON.parse(selectedPetsJson) : [];
   
-  // Walking mode params
-  const slotId = params.slotId as string;
+  // Walking mode params - updated for new flow
   const date = params.date as string;
   const startTime = params.startTime as string;
   const endTime = params.endTime as string;
@@ -52,30 +60,63 @@ export default function ConfirmBookingScreen() {
   const startDate = params.startDate as string;
   const endDate = params.endDate as string;
   
+  // Format time for display (convert 24h to 12h if needed)
+  const formatTimeDisplay = (timeString: string) => {
+    if (!timeString) return '';
+    
+    // If time is already in 12-hour format with AM/PM, return as is
+    if (timeString.includes('AM') || timeString.includes('PM')) {
+      return timeString;
+    }
+    
+    // Otherwise, convert from 24h format
+    const [hours, minutes] = timeString.split(':');
+    const hour = parseInt(hours, 10);
+    const period = hour >= 12 ? 'PM' : 'AM';
+    const formattedHour = hour % 12 || 12;
+    
+    return `${formattedHour}:${minutes} ${period}`;
+  };
+  
+  // Helper function to convert time from 24-hour to decimal
+  const timeToDecimal = (timeString: string) => {
+    if (!timeString) return 0;
+    
+    // If time is already in 12-hour format with AM/PM, convert first
+    if (timeString.includes('AM') || timeString.includes('PM')) {
+      const [timePart, modifier] = timeString.split(' ');
+      let [hours, minutes] = timePart.split(':').map(Number);
+      
+      if (hours === 12) {
+        hours = modifier === 'PM' ? 12 : 0;
+      } else if (modifier === 'PM') {
+        hours += 12;
+      }
+      
+      return hours + minutes / 60;
+    }
+    
+    // Already in 24-hour format
+    const [hours, minutes] = timeString.split(':').map(Number);
+    return hours + minutes / 60;
+  };
+  
   // Calculate duration based on booking mode
   const calculateDuration = () => {
     if (mode === 'walking') {
       try {
-        const convertTo24HourFormat = (time: string) => {
-          const [timePart, modifier] = time.split(' ');
-          let [hours, minutes] = timePart.split(':').map(Number);
-          
-          if (hours === 12) {
-            hours = modifier === 'PM' ? 12 : 0;
-          } else if (modifier === 'PM') {
-            hours += 12;
-          }
-          
-          return hours + minutes / 60;
-        };
+        const startHours = timeToDecimal(startTime);
+        const endHours = timeToDecimal(endTime);
         
-        const startHours = convertTo24HourFormat(startTime);
-        const endHours = convertTo24HourFormat(endTime);
+        // Calculate duration in hours
+        let duration = endHours - startHours;
         
-        // Calculate duration, handling if end time is on the next day
-        const duration = endHours >= startHours ? endHours - startHours : 24 - startHours + endHours;
+        // If end time is less than start time (e.g., next day), add 24 hours
+        if (duration < 0) {
+          duration += 24;
+        }
         
-        return Math.max(1, Math.round(duration)); // Ensure at least 1 hour and round to nearest hour
+        return Math.max(0.5, duration); // Return at least 30 minutes (0.5 hours)
       } catch (error) {
         console.error('Error calculating duration:', error);
         return 1; // Default to 1 hour if calculation fails
@@ -108,10 +149,10 @@ export default function ConfirmBookingScreen() {
     if (!sitterRates) {
       // Default fallback rates if sitter rates aren't loaded yet
       if (mode === 'walking') {
-        const baseRate = 20.00;
-        const additionalPetRate = 10.00;
-        const baseFee = baseRate; // Per walk, not per hour
-        const additionalPetFee = Math.max(0, selectedPets.length - 1) * additionalPetRate;
+        const baseRate = 20.00; // Per hour 
+        const additionalPetRate = 10.00; // Per additional pet per hour
+        const baseFee = baseRate * duration; // Multiplied by duration in hours
+        const additionalPetFee = Math.max(0, selectedPets.length - 1) * additionalPetRate * duration;
         const subtotal = baseFee + additionalPetFee;
         const platformFee = subtotal * 0.10; // 10% platform fee
         return {
@@ -121,7 +162,7 @@ export default function ConfirmBookingScreen() {
           additionalPetFee,
           platformFee,
           totalPrice: subtotal + platformFee,
-          priceLabel: 'per walk'
+          priceLabel: 'per hour'
         };
       } else {
         // Boarding rates
@@ -145,10 +186,10 @@ export default function ConfirmBookingScreen() {
     
     // Calculate using actual sitter rates
     if (mode === 'walking') {
-      const baseRate = sitterRates.walking_rate_per_hour; // Despite name, this is per walk
+      const baseRate = sitterRates.walking_rate_per_hour; // Now properly per hour
       const additionalPetRate = sitterRates.walking_rate_for_additional_dog;
-      const baseFee = baseRate; // Per walk, not per hour
-      const additionalPetFee = Math.max(0, selectedPets.length - 1) * additionalPetRate;
+      const baseFee = baseRate * duration; // Multiplied by duration in hours
+      const additionalPetFee = Math.max(0, selectedPets.length - 1) * additionalPetRate * duration;
       const subtotal = baseFee + additionalPetFee;
       const platformFee = subtotal * 0.10; // 10% platform fee
       
@@ -159,7 +200,7 @@ export default function ConfirmBookingScreen() {
         additionalPetFee,
         platformFee,
         totalPrice: subtotal + platformFee,
-        priceLabel: 'per walk'
+        priceLabel: 'per hour'
       };
     } else {
       // Boarding rates
@@ -241,7 +282,6 @@ export default function ConfirmBookingScreen() {
         setCardLast4(null);
       }
     } catch (error) {
-      console.error('Error checking saved card:', error);
       // Show alert for development purposes - you can remove this in production
       Alert.alert('Payment Method Error', 'Could not retrieve saved payment methods. New users will need to add a card.');
       // In case of error, assume no saved card
@@ -259,6 +299,7 @@ export default function ConfirmBookingScreen() {
   }, [user]);
   // Function to initialize the Stripe payment sheet
   const initializePayment = async (formattedDate: string) => {
+    console.log('initializePayment called with formattedDate:', formattedDate);
     if (!user) {
       throw new Error('User not authenticated');
     }
@@ -277,16 +318,18 @@ export default function ConfirmBookingScreen() {
       let requestPayload: any;
       
       if (mode === 'walking') {
-        // Debugging slot ID parsing
-        const availabilitySlotId = slotId.includes('_') ? slotId.split('_')[1] : slotId;
+        // For walking mode, add weekday parameter
+        const walkingDate = new Date(formattedDate);
+        const weekday = walkingDate.getDay(); // Get day of week (0-6, Sunday-Saturday)
         
         requestPayload = {
           ...commonPayload,
-          availability_slot_id: availabilitySlotId,
           booking_date: formattedDate,
           start_time: startTime,
-          end_time: endTime
+          end_time: endTime,
+          weekday: weekday // Add weekday to help find availability slot
         };
+        
       } else {
         // Boarding mode
         requestPayload = {
@@ -294,6 +337,8 @@ export default function ConfirmBookingScreen() {
           start_date: startDate,
           end_date: endDate
         };
+        
+        
       }
             
       // Call init-payment Edge Function using Supabase client
@@ -303,7 +348,18 @@ export default function ConfirmBookingScreen() {
       
       if (paymentError) {
         console.error('Payment initialization error details:', paymentError);
-        throw new Error(`Failed to initialize payment: ${paymentError.message}`);
+        
+        // Extract more helpful error message if available
+        let errorMessage = 'Failed to initialize payment';
+        if (paymentError.message) {
+          if (paymentError.message.includes('Failed to create booking')) {
+            errorMessage = 'There was an issue creating your booking. Please check your information and try again.';
+          } else {
+            errorMessage = paymentError.message;
+          }
+        }
+        
+        throw new Error(errorMessage);
       }
       
       
@@ -336,25 +392,21 @@ export default function ConfirmBookingScreen() {
           Alert.alert('Payment Canceled', 'You have canceled the payment process.');
         } else {
           // Other error
+          console.error('Payment confirm error:', paymentConfirmError);
           Alert.alert('Payment Error', paymentConfirmError.message);
         }
         setIsSubmitting(false);
         return null;
       } else {
-        // ** crucial: call handlePaymentSuccess here **
-        await handlePaymentSuccess({
-          // Use clientSecret as placeholder intent ID for now.
-          // IMPORTANT: Stripe might provide the actual PaymentIntent ID after presentPaymentSheet succeeds.
-          // If so, use that instead of clientSecret. Check Stripe SDK docs/response.
-          paymentIntentId: clientSecret, 
-          amount: Math.round(pricing.totalPrice * 100), // Amount in cents
-          bookingId: bookingId // Booking ID from init-payment response
-        });
-        // Return necessary info if needed after success handling
-        return { bookingId }; 
+        // Payment was successful
+        const amount = Math.round(pricing.totalPrice * 100); // Amount in cents
+        const paymentIntentId = clientSecret; // Use clientSecret as paymentIntentId for now
+        
+        // Return necessary info for further processing
+        // Do NOT call handlePaymentSuccess here - it will be called by handleBookNow
+        return { bookingId, paymentIntentId, amount }; 
       }
     } catch (error: any) {
-      console.error('Error initializing payment:', error);
       Alert.alert('Payment Error', error.message || 'There was an error initiating the payment process.');
       setIsSubmitting(false);
       return null;
@@ -394,7 +446,6 @@ export default function ConfirmBookingScreen() {
       // Return all necessary data for handlePaymentSuccess
       return { bookingId, paymentIntentId, amount: chargeData.amount || Math.round(pricing.totalPrice * 100) };
     } catch (error: any) {
-      console.error('Error charging payment:', error);
       throw error;
     }
   };
@@ -411,6 +462,20 @@ export default function ConfirmBookingScreen() {
       return;
     }
 
+    // Validate all required fields are present
+    if (mode === 'walking') {
+      if (!date || !startTime || !endTime) {
+        Alert.alert('Error', 'Missing required booking information. Please try again.');
+        return;
+      }
+    } else {
+      if (!startDate || !endDate) {
+        Alert.alert('Error', 'Missing required booking information. Please try again.');
+        console.error('Missing boarding parameters:', { startDate, endDate });
+        return;
+      }
+    }
+
     try {
       setIsSubmitting(true);
       
@@ -418,30 +483,27 @@ export default function ConfirmBookingScreen() {
       
       // Process dates based on booking mode
       if (mode === 'walking') {
-        // For walking mode, format the single date
+        // For walking mode, ensure we have a consistent YYYY-MM-DD format
         try {
-          // Parse the date string which might be in format like "Mar 15, 2025"
-          const dateParts = date.split(' ');
-          // Handle month abbreviation
-          const months: Record<string, number> = {
-            'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'May': 4, 'Jun': 5,
-            'Jul': 6, 'Aug': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dec': 11
-          };
-          
-          // Parse month, day, and year
-          const month = months[dateParts[0]] as number;
-          // Remove comma from day
-          const day = parseInt(dateParts[1].replace(',', ''));
-          const year = parseInt(dateParts[2]);
-          
-          // Create date object
-          const bookingDate = new Date(year, month, day);
-          
-          // Format date for database as YYYY-MM-DD
-          formattedDate = bookingDate.toISOString().split('T')[0];
+          // Check if date is already in ISO format (YYYY-MM-DD)
+          if (date && date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            formattedDate = date;
+          } else if (date && (date.includes('/') || date.includes(',') || /^[A-Za-z]{3}\s\d{1,2},\s\d{4}$/.test(date))) {
+            // Handle various date formats (M/D/YYYY or "Mar 15, 2023")
+            const parsedDate = new Date(date);
+            if (!isNaN(parsedDate.getTime())) {
+              formattedDate = parsedDate.toISOString().split('T')[0];
+            } else {
+              throw new Error('Unable to parse date format');
+            }
+          } else {
+            throw new Error('Invalid date format');
+          }
         } catch (dateError) {
-          console.error('Error parsing walking date:', dateError);
-          throw new Error('Invalid date format for walking booking. Please try again.');
+          console.error('Error parsing walking date:', dateError, 'Original date:', date);
+          Alert.alert('Date Error', 'There was an issue with the date format. Please try again.');
+          setIsSubmitting(false);
+          return;
         }
       } else {
         // For boarding mode, we already have the dates in YYYY-MM-DD format
@@ -476,6 +538,7 @@ export default function ConfirmBookingScreen() {
                     }
                     resolve(null);
                   } catch (error: any) {
+                    console.error('Error in Use New Card flow:', error);
                     Alert.alert('Payment Failed', error.message || 'Failed to process payment');
                     resolve(null);
                   } finally {
@@ -497,17 +560,23 @@ export default function ConfirmBookingScreen() {
                     
                     if (mode === 'walking') {
                       // Walking booking request
+                      const walkingDate = new Date(formattedDate);
+                      const weekday = walkingDate.getDay(); // Get day of week (0-6, Sunday-Saturday)
+                      
                       requestBody = {
                         owner_id: user.id,
                         sitter_id: sitterId,
-                        availability_slot_id: slotId.split('_')[1],
                         booking_date: formattedDate,
                         start_time: startTime,
                         end_time: endTime,
+                        weekday: weekday, // Add weekday to help find availability slot
                         selected_pets: JSON.stringify(selectedPets), // Convert to JSON string
                         total_price: pricing.totalPrice,
                         booking_type: 'walking'
                       };
+                      
+                      // Log for debugging
+                      console.log('Save card walking payload:', JSON.stringify(requestBody, null, 2));
                     } else {
                       // Boarding booking request
                       requestBody = {
@@ -519,8 +588,10 @@ export default function ConfirmBookingScreen() {
                         total_price: pricing.totalPrice,
                         booking_type: 'boarding'
                       };
+                      
+                      // Log for debugging
+                      console.log('Save card boarding payload:', JSON.stringify(requestBody, null, 2));
                     }
-                    
                     
                     const { data: initData, error: initError } = await supabase.functions.invoke('init-payment', {
                       body: requestBody
@@ -560,8 +631,11 @@ export default function ConfirmBookingScreen() {
         });
       } else {
         // No saved card, go through the new card flow
+        console.log('No saved card, proceeding with direct payment flow');
         const result = await initializePayment(formattedDate);
+        console.log('initializePayment result in direct flow:', result ? `bookingId: ${result.bookingId}` : 'null');
         if (result) {
+          console.log('Calling handlePaymentSuccess from direct flow');
           await handlePaymentSuccess({
             paymentIntentId: result.paymentIntentId,
             amount: result.amount, // amount should be in cents
@@ -579,78 +653,40 @@ export default function ConfirmBookingScreen() {
     }
   };
   
-  const handlePaymentSuccess = async (paymentData: { paymentIntentId: string; amount: number; bookingId: string }) => {
-    try {
-      setIsSubmitting(false);
-      // Save invoice information to invoices table
-      const invoiceData = {
-        booking_type: mode,
-        walking_booking_id: mode === 'walking' ? paymentData.bookingId : null,
-        boarding_booking_id: mode === 'boarding' ? paymentData.bookingId : null,
-        sitter_id: sitterId,
-        owner_id: user?.id || '', // Add fallback for user id
-        stripe_payment_intent_id: paymentData.paymentIntentId,
-        stripe_invoice_id: paymentData.paymentIntentId, // Assuming intent ID serves as invoice ID for now
-        amount: paymentData.amount / 100, // Amount should be in cents from paymentData
-        platform_fee: calculatePlatformFee(paymentData.amount / 100),
-        sitter_payout: calculateSitterPayout(paymentData.amount / 100),
-        status: 'paid', // Assuming success means paid
-        payment_method: 'card', // Assuming card payment
-        service_type: mode,
-        service_date: mode === 'walking' ? date : startDate,
-        metadata: JSON.stringify({
-          bookingDetails: mode === 'walking' ? {
-            date: date,
-            startTime: startTime,
-            endTime: endTime,
-            duration: duration
-          } : {
-            startDate: startDate,
-            endDate: endDate,
-            nights: duration
-          },
-          pets: selectedPets
-        })
-      };
-
-      const { error: invoiceError } = await supabase.from('invoices').insert([invoiceData]);
-
-      if (invoiceError) {
-        console.error('Error saving invoice:', invoiceError);
-        // Decide if we should alert the user here or just log
-        Alert.alert('Invoice Error', 'There was an issue saving the invoice details, but your booking is confirmed.');
-      } else {
-        console.log('Invoice saved successfully');
-      }
-
-      // Create a message thread for the booking
-      if (user) {
-        // Pass bookingId explicitly to createMessageThread
-        await createMessageThread(paymentData.bookingId);
-      } else {
-        console.error('User not authenticated, cannot create message thread');
-        // Still show success message but don't navigate to messages
-        Alert.alert(
-          'Booking Confirmed',
-          `Your dog ${mode === 'walking' ? 'walk' : 'stay'} booking has been confirmed! The dog sitter will be notified.`,
-          [{ text: 'OK' }]
-        );
-      }
-    } catch (error) {
-      console.error('Error handling payment success:', error);
-      Alert.alert('Error', 'There was an error finalizing your booking.');
-      setIsSubmitting(false);
-    }
+  // Handle successful payment
+  const handlePaymentSuccess = async (paymentIntentData: PaymentIntentResult) => {
+    // Create a message thread with the booking ID from the payment result
+    await createMessageThread(paymentIntentData.bookingId);
   };
 
   const createMessageThread = async (bookingId: string) => {
-    // Remove the paymentIntentData parameter as it's no longer needed here
-    if (!user) {
-      throw new Error('User not authenticated');
-    }
-    
     try {
-      // Create message thread data based on booking type
+      if (!user) {
+        console.error('User not authenticated, cannot create message thread');
+        if (!showingAlert) {
+          setShowingAlert(true);
+          Alert.alert(
+            'Error',
+            'There was a problem completing your booking. Please try again.',
+            [{ text: 'OK', onPress: () => setShowingAlert(false) }]
+          );
+        }
+        return;
+      }
+
+      if (!sitterId) {
+        if (!showingAlert) {
+          setShowingAlert(true);
+          Alert.alert(
+            'Error',
+            'There was a problem completing your booking. Please try again.',
+            [{ text: 'OK', onPress: () => setShowingAlert(false) }]
+          );
+        }
+        return;
+      }
+      
+      // Create a new message thread for this booking
       type ThreadData = {
         owner_id: string;
         sitter_id: string;
@@ -660,53 +696,92 @@ export default function ConfirmBookingScreen() {
         walking_booking_id?: string;
         boarding_booking_id?: string;
       };
-      
-      const threadData: ThreadData = {
+
+      const threadPayload: ThreadData = {
         owner_id: user.id,
         sitter_id: sitterId,
-        last_message: "Booking created",
+        last_message: `Booking confirmed for ${mode === 'walking' ? 'a walk on ' + formatDateDisplay(date) : 'boarding from ' + formatDateDisplay(startDate) + ' to ' + formatDateDisplay(endDate)}`,
         last_message_time: new Date().toISOString(),
-        booking_type: mode
+        booking_type: mode === 'walking' ? 'walking' : 'boarding',
       };
       
       // Add the appropriate booking ID field based on booking type
       if (mode === 'walking') {
-        threadData.walking_booking_id = bookingId;
+        threadPayload.walking_booking_id = bookingId;
       } else {
-        threadData.boarding_booking_id = bookingId;
+        threadPayload.boarding_booking_id = bookingId;
       }
       
-      
-      const { error: threadError } = await supabase
+      console.log('About to create thread with payload:', JSON.stringify(threadPayload));
+      const { data: createdThread, error: threadError } = await supabase
         .from('message_threads')
-        .insert([threadData]);
+        .insert([threadPayload])
+        .select()
+        .single();
         
       if (threadError) {
-        console.error('Error creating message thread:', threadError);
-        // We don't throw here, as the booking itself was successful
+        // Show an error alert but don't navigate
+        if (!showingAlert) {
+          setShowingAlert(true);
+          Alert.alert(
+            'Booking Confirmed',
+            `Your dog ${mode === 'walking' ? 'walk' : 'stay'} booking has been confirmed, but we couldn't set up messaging with the sitter.`,
+            [{ 
+              text: 'OK', 
+              onPress: () => {
+                setShowingAlert(false);
+                router.push('/(tabs)');
+              }
+            }]
+          );
+        }
+        return;
       }
       
-      // Show success message and navigate to messages
-      const bookingType = mode === 'walking' ? 'walking' : 'boarding';
-      const serviceName = mode === 'walking' ? 'walk' : 'stay';
-      
-      Alert.alert(
-        'Booking Confirmed',
-        `Your dog ${serviceName} booking has been confirmed! The dog sitter will be notified.`,
-        [
-          { 
-            text: 'OK', 
-            onPress: () => router.push({
-              pathname: '/(tabs)/messages',
-              params: {
-                showWelcomeMessage: "true"
-              }
-            }) 
-          }
-        ]
-      );
+      // Show success message and navigate to messages with the thread ID
+      if (!showingAlert) {
+        setShowingAlert(true);
+        const serviceName = mode === 'walking' ? 'walk' : 'stay';
+        
+        Alert.alert(
+          'Booking Confirmed',
+          `Your dog ${serviceName} booking has been confirmed! The dog sitter will be notified.`,
+          [
+            { 
+              text: 'OK', 
+              onPress: () => {
+                setShowingAlert(false);
+                console.log('Alert OK pressed, navigating to messages with threadId:', createdThread.id);
+                router.push({
+                  pathname: '/(tabs)/messages',
+                  params: {
+                    threadId: createdThread.id,
+                    showWelcomeMessage: "true"
+                  }
+                });
+              } 
+            }
+          ]
+        );
+      } else {
+        console.log('Already showing an alert, not showing another one');
+      }
     } catch (error) {
-      console.error('Error creating message thread:', error);
+      // Show a generic error alert
+      if (!showingAlert) {
+        setShowingAlert(true);
+        Alert.alert(
+          'Booking Confirmed',
+          `Your booking is confirmed, but there was an error setting up communication with the sitter.`,
+          [{ 
+            text: 'OK', 
+            onPress: () => {
+              setShowingAlert(false);
+              router.push('/(tabs)');
+            }
+          }]
+        );
+      }
     }
   };
 
@@ -718,6 +793,21 @@ export default function ConfirmBookingScreen() {
   const calculateSitterPayout = (amount: number) => {
     // Sitter gets 80% after platform fee
     return amount * 0.8;
+  };
+
+  const formatDateDisplay = (dateString: string) => {
+    if (!dateString) return '';
+    
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        return dateString; // Return as is if invalid
+      }
+      return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return dateString;
+    }
   };
 
   return (
@@ -735,14 +825,14 @@ export default function ConfirmBookingScreen() {
           <Text style={styles.summaryTitle}>Booking Details</Text>
           {mode === 'walking' ? (
             <>
-              <Text style={styles.summaryText}>Date: {date}</Text>
-              <Text style={styles.summaryText}>Time: {startTime} - {endTime}</Text>
+              <Text style={styles.summaryText}>Date: {formatDateDisplay(date)}</Text>
+              <Text style={styles.summaryText}>Time: {formatTimeDisplay(startTime)} - {formatTimeDisplay(endTime)}</Text>
               <Text style={styles.summaryText}>Duration: {duration} hour{duration !== 1 ? 's' : ''}</Text>
             </>
           ) : (
             <>
-              <Text style={styles.summaryText}>Start Date: {startDate ? new Date(startDate).toLocaleDateString() : 'Not selected'}</Text>
-              <Text style={styles.summaryText}>End Date: {endDate ? new Date(endDate).toLocaleDateString() : 'Not selected'}</Text>
+              <Text style={styles.summaryText}>Start Date: {formatDateDisplay(startDate)}</Text>
+              <Text style={styles.summaryText}>End Date: {formatDateDisplay(endDate)}</Text>
               <Text style={styles.summaryText}>Duration: {duration} night{duration !== 1 ? 's' : ''}</Text>
             </>
           )}

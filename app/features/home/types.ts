@@ -1,7 +1,9 @@
+import { ImageSourcePropType } from 'react-native';
+
 export interface Service {
   id: string;
   title: string;
-  icon: string;
+  icon: ImageSourcePropType;
 }
 
 export interface Sitter {

@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Image, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Image, ScrollView, Alert } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { ChevronLeft, Check } from 'lucide-react-native';
@@ -28,18 +28,45 @@ export default function SelectPetsScreen() {
   const [error, setError] = useState<string | null>(null);
 
   // Get booking details from params
-  const mode = params.mode as 'walking' | 'boarding';
   const sitterId = params.sitterId as string;
+  const serviceId = params.serviceId as string;
   
-  // Walking mode params
-  const slotId = params.slotId as string;
+  // Common params for both modes
+  const mode = params.mode as string || 'walking'; // Default to walking
+  
+  // Walking mode params from new flow
   const date = params.date as string;
   const startTime = params.startTime as string;
   const endTime = params.endTime as string;
   
-  // Boarding mode params
+  // Boarding mode params - kept for backward compatibility
   const startDate = params.startDate as string;
   const endDate = params.endDate as string;
+
+  // Format date for display
+  const formatDisplayDate = (dateString: string) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  };
+
+  // Format time for display (convert 24h to 12h if needed)
+  const formatTimeDisplay = (timeString: string) => {
+    if (!timeString) return '';
+    
+    // If time is already in 12-hour format with AM/PM, return as is
+    if (timeString.includes('AM') || timeString.includes('PM')) {
+      return timeString;
+    }
+    
+    // Otherwise, convert from 24h format
+    const [hours, minutes] = timeString.split(':');
+    const hour = parseInt(hours, 10);
+    const period = hour >= 12 ? 'PM' : 'AM';
+    const formattedHour = hour % 12 || 12;
+    
+    return `${formattedHour}:${minutes} ${period}`;
+  };
 
   useEffect(() => {
     if (user) {
@@ -81,38 +108,49 @@ export default function SelectPetsScreen() {
 
   const handleContinue = () => {
     if (selectedPets.length === 0) {
-      // Show an error or alert that at least one pet must be selected
+      Alert.alert('Error', 'Please select at least one pet for this booking.');
       return;
     }
 
-    // Set up common parameters
+    // Set up common parameters and print to console for debugging
     const commonParams = {
-      sitterId,
-      mode,
+      sitterId: sitterId as string,
+      serviceId: serviceId as string,
       selectedPets: JSON.stringify(selectedPets)
     };
     
+    console.log('Selected pets:', selectedPets);
+    
     // Navigate to the next screen (confirmation/payment) with the selected pets
-    if (mode === 'walking') {
+    if (mode === 'walking' || !mode) {
+      const walkingParams = { 
+        ...commonParams,
+        mode: 'walking',
+        date: date as string, 
+        startTime: startTime as string, 
+        endTime: endTime as string
+      };
+      
+      console.log('Navigating to confirm with params:', walkingParams);
+      
       router.push({
         pathname: `/booking/confirm`, 
-        params: { 
-          ...commonParams,
-          slotId, 
-          date, 
-          startTime, 
-          endTime
-        }
+        params: walkingParams
       });
     } else {
       // Boarding mode
+      const boardingParams = { 
+        ...commonParams,
+        mode: 'boarding',
+        startDate: startDate as string,
+        endDate: endDate as string
+      };
+      
+      console.log('Navigating to confirm with params:', boardingParams);
+      
       router.push({
         pathname: `/booking/confirm`, 
-        params: { 
-          ...commonParams,
-          startDate,
-          endDate
-        }
+        params: boardingParams
       });
     }
   };
@@ -185,16 +223,17 @@ export default function SelectPetsScreen() {
       <ScrollView style={styles.contentContainer}>
         <View style={styles.bookingSummary}>
           <Text style={styles.summaryTitle}>Booking Details</Text>
-          {mode === 'walking' ? (
+          {(mode === 'walking' || !mode) ? (
             <>
-              <Text style={styles.summaryText}>Date: {date}</Text>
-              <Text style={styles.summaryText}>Time: {startTime} - {endTime}</Text>
+              <Text style={styles.summaryText}>Date: {formatDisplayDate(date)}</Text>
+              <Text style={styles.summaryText}>Time: {formatTimeDisplay(startTime)} - {formatTimeDisplay(endTime)}</Text>
+              <Text style={styles.summaryText}>Service: Dog Walking</Text>
             </>
           ) : (
             <>
-              <Text style={styles.summaryText}>Start Date: {startDate ? new Date(startDate).toLocaleDateString() : 'Not selected'}</Text>
-              <Text style={styles.summaryText}>End Date: {endDate ? new Date(endDate).toLocaleDateString() : 'Not selected'}</Text>
-              <Text style={styles.summaryText}>Service: Boarding</Text>
+              <Text style={styles.summaryText}>Start Date: {startDate ? formatDisplayDate(startDate) : 'Not selected'}</Text>
+              <Text style={styles.summaryText}>End Date: {endDate ? formatDisplayDate(endDate) : 'Not selected'}</Text>
+              <Text style={styles.summaryText}>Service: Dog Boarding</Text>
             </>
           )}
         </View>

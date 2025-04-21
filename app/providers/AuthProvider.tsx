@@ -6,8 +6,8 @@ import { View, ActivityIndicator, Text } from 'react-native';
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { user, isLoading, error, initialized } = useAuthStore();
   const segments = useSegments();
-  // Allow new users to complete pup onboarding
-  const isOnboarding = segments.includes('pup-onboarding');
+  // Allow new users to complete all onboarding screens
+  const isOnboarding = segments.includes('pup-onboarding') || segments.includes('location-onboarding');
 
   useEffect(() => {
     // Only run navigation logic after auth initialization is complete

@@ -35,22 +35,16 @@ const WalkingSection: React.FC<WalkingSectionProps> = ({
   );
 
   const handleBooking = () => {
-    const slotDetails = walkingSlots.find(s => s.id === selectedSlot);
-    if (!slotDetails || !sitterId) {
-      Toast.show({ type: 'error', text1: 'Booking Error', text2: 'Selected slot details not found.' });
+    if (!sitterId) {
+      Toast.show({ type: 'error', text1: 'Booking Error', text2: 'Sitter information not found.' });
       return;
     }
     
     router.push({
-      pathname: '/booking/select-pets', 
+      pathname: '/booking/select-date', 
       params: {
         sitterId,
-        mode: 'walking',
-        slotId: selectedSlot, 
-        date: slotDetails.date,
-        startTime: slotDetails.startTime,
-        endTime: slotDetails.endTime,
-        formattedTime: slotDetails.formattedTime
+        serviceId: 'walking',
       },
     });
   };

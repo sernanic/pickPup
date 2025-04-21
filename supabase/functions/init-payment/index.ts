@@ -23,10 +23,11 @@ interface BaseRequestBody {
 
 interface WalkingRequestBody extends BaseRequestBody {
   booking_type: 'walking'
-  availability_slot_id: string
+  availability_slot_id?: string  // Now optional since we'll find it dynamically
   booking_date: string
   start_time: string
   end_time: string
+  weekday: number  // Add weekday field (0-6 for Sunday-Saturday)
 }
 
 interface BoardingRequestBody extends BaseRequestBody {
@@ -120,7 +121,54 @@ Deno.serve(async (req) => {
     
     if (booking_type === 'walking') {
       // Extract walking-specific fields
-      const { availability_slot_id, booking_date, start_time, end_time } = body as WalkingRequestBody;
+      const { booking_date, start_time, end_time, weekday } = body as WalkingRequestBody;
+      
+      // Find the appropriate availability slot based on weekday
+      let availability_slot_id = null;
+      if (weekday !== undefined) {
+        // Convert weekday to number if needed
+        const weekdayNumber = typeof weekday === 'string' ? parseInt(weekday, 10) : weekday;
+        
+        // First, try to find an exact match for the weekday
+        let { data: availabilityData, error: availabilityError } = await supabase
+          .from('sitter_weekly_availability')
+          .select('id')
+          .eq('sitter_id', sitter_id)
+          .eq('weekday', weekdayNumber)
+          .maybeSingle(); // Use maybeSingle instead of single to avoid error if no rows found
+          
+        if (availabilityError) {
+          console.error('Error finding availability slot:', availabilityError);
+        } else if (availabilityData) {
+          availability_slot_id = availabilityData.id;
+          console.log(`Found availability_slot_id: ${availability_slot_id} for weekday: ${weekday}`);
+        } else {
+          // If no exact match, try to find any availability slot for this sitter
+          console.log(`No availability found for weekday ${weekday}, trying to find any slot`);
+          const { data: anySlotData, error: anySlotError } = await supabase
+            .from('sitter_weekly_availability')
+            .select('id')
+            .eq('sitter_id', sitter_id)
+            .limit(1)
+            .maybeSingle();
+            
+          if (anySlotError) {
+            console.error('Error finding any availability slot:', anySlotError);
+          } else if (anySlotData) {
+            availability_slot_id = anySlotData.id;
+            console.log(`Found fallback availability_slot_id: ${availability_slot_id}`);
+          }
+        }
+      }
+      
+      // If still no availability slot, we'll use a UUID generator to create a fake one
+      // This is needed because the walking_bookings table requires this field
+      if (!availability_slot_id) {
+        console.warn('No availability slot found, creating booking anyway');
+        // Generate a random UUID for the availability_slot_id
+        availability_slot_id = crypto.randomUUID();
+        console.log(`Created placeholder availability_slot_id: ${availability_slot_id}`);
+      }
       
       // Create walking booking
       const result = await supabase

@@ -29,7 +29,7 @@ export function ServicesList({
               style={styles.serviceCard}
               onPress={() => onServicePress(item)}
             >
-              <Image source={{ uri: item.icon }} style={styles.serviceIcon} />
+              <Image source={item.icon} style={styles.serviceIcon} />
               <Text style={styles.serviceTitle}>{item.title}</Text>
             </TouchableOpacity>
           )}
@@ -44,10 +44,11 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   sectionTitle: {
-    fontFamily: 'Poppins-SemiBold',
-    fontSize: 18,
-    color: '#1A1A1A',
+    fontFamily: 'Poppins-Bold',
+    fontSize: 22,
+    color: '#1F2C3D',
     marginBottom: 16,
+    fontWeight: 'bold',
   },
   servicesList: {
     paddingRight: 16,
