@@ -1,37 +1,40 @@
 module.exports = {
-  name: "Dog Sitter",
-  slug: "dogsitter",
+  name: "PikPup",
+  slug: "pickpup-app",
   version: "1.0.0",
   orientation: "portrait",
-  icon: "./assets/icon.png",
+  icon: "./assets/images/icon.png",
   userInterfaceStyle: "light",
-  splash: {
-    image: "./assets/splash.png",
-    resizeMode: "contain",
-    backgroundColor: "#ffffff"
-  },
+  // Removed splash block
   assetBundlePatterns: [
     "**/*"
   ],
   ios: {
     supportsTablet: true,
-    bundleIdentifier: "com.dogsitter.app"
+    bundleIdentifier: "com.pikpup.app",
+    buildNumber: '2',
+    infoPlist: {
+      ITSAppUsesNonExemptEncryption: false
+    }
   },
   android: {
     adaptiveIcon: {
-      foregroundImage: "./assets/adaptive-icon.png",
+      foregroundImage: "./assets/images/adaptive-icon.png",
       backgroundColor: "#ffffff"
     },
     package: "com.dogsitter.app"
   },
   web: {
-    favicon: "./assets/favicon.png"
+    favicon: "./assets/images/favicon.png"
   },
   extra: {
     // Add your Stripe publishable key here
     stripePublishableKey: "pk_test_51R4AEyGEGWY8s9hUAE4oBe7SupMS66g46sxiSFZO8R1KGbQJz75r51s2s7fE9Wa7qHQiQQKNan0GboDv2BoXoEAi005RlzppHK",
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
     supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+    eas: {
+      projectId: 'bbcc3a73-8035-45ae-bd19-9667291f8d4d'
+    }
   },
   plugins: [
     [

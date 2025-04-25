@@ -61,7 +61,7 @@ export function NearbySitters({
   return (
     <Animated.View entering={FadeInDown.delay(animationDelay).duration(600)}>
       <View style={styles.nearbyContainer}>
-        <Text style={styles.sectionTitle}>Nearby Sitters </Text><Text>{effectiveMaxDistance} mile radius</Text>
+        <Text style={styles.sectionTitle}>Nearby Sitters{effectiveMaxDistance} mile radius </Text><Text></Text>
         {isLoading || favoritesLoading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#63C7B8" />
