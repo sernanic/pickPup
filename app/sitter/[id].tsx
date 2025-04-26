@@ -294,7 +294,7 @@ export default function SitterProfileScreen() {
                 </View>
               ) : (
                 <View style={styles.emptyStateContainer}>
-                  <Text style={styles.emptyStateText}>No reviews yet</Text>
+                  <Text style={styles.emptyStateText}>No ratings or reviews</Text>
                 </View>
               )}
             </View>

@@ -18,7 +18,7 @@ export function NearbySitters({
   animationDelay = 400,
   maxDistance
 }: NearbySittersProps) {
-  const { sitters, fetchSitters, isLoading, error, filterSitters } = useSitterStore();
+  const { sitters, filteredSitters, fetchSitters, isLoading, error, filterSitters } = useSitterStore();
   const { user } = useAuthStore();
   const { 
     favoriteIds, 
@@ -30,14 +30,21 @@ export function NearbySitters({
   // The effective max distance is either the prop value (if provided) or the user's preference
   const effectiveMaxDistance = maxDistance || (user ? user.maxDistance : 25);
   
+  // Fetch sitters when component mounts or if we have none
   useEffect(() => {
-    // Only fetch favorites when component mounts
-    fetchFavorites();
-    // No need to include fetchFavorites in the dependency array
+    if (sitters.length === 0) {
+      fetchSitters();
+    }
+    // No need to include fetchSitters in the dependency array
     // as it should be a stable reference from the store
   }, []);
+
+  // Fetch favorites when component mounts
+  useEffect(() => {
+    fetchFavorites();
+  }, []);
   
-  // Apply distance filter only when distance preference changes
+  // Apply distance filter when effective distance changes or sitters data is updated
   useEffect(() => {
     // Only filter if we already have sitters loaded to avoid unnecessary calls
     if (sitters.length > 0 && !isLoading) {
@@ -47,12 +54,12 @@ export function NearbySitters({
         maxDistance: effectiveMaxDistance 
       });
     }
-  }, [effectiveMaxDistance]);
+  }, [effectiveMaxDistance, sitters]);
   
-  // Use useMemo to sort sitters by distance instead of doing it in the render method
+  // Use useMemo to sort the FILTERED sitters (not all sitters) by distance
   const sortedSitters = useMemo(() => {
-    return [...sitters].sort((a, b) => a.distance - b.distance);
-  }, [sitters]);
+    return [...filteredSitters].sort((a, b) => a.distance - b.distance);
+  }, [filteredSitters]);
 
   const handleToggleFavorite = async (sitterId: string) => {
     await toggleFavorite(sitterId);
@@ -61,14 +68,14 @@ export function NearbySitters({
   return (
     <Animated.View entering={FadeInDown.delay(animationDelay).duration(600)}>
       <View style={styles.nearbyContainer}>
-        <Text style={styles.sectionTitle}>Nearby Sitters{effectiveMaxDistance} mile radius </Text><Text></Text>
+        <Text style={styles.sectionTitle}>Nearby Sitters ({effectiveMaxDistance} mile radius)</Text>
         {isLoading || favoritesLoading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#63C7B8" />
           </View>
         ) : error ? (
           <Text style={styles.errorText}>{error}</Text>
-        ) : sitters.length === 0 ? (
+        ) : sortedSitters.length === 0 ? (
           <View style={styles.emptyStateContainer}>
             <Text style={styles.emptyText}>
               No sitters found within {effectiveMaxDistance} miles of your location.
@@ -81,7 +88,7 @@ export function NearbySitters({
             </TouchableOpacity>
           </View>
         ) : (
-          // Use memoized sorted sitters array
+          // Map the filtered and sorted sitters
           sortedSitters.map((sitter, index) => (
               <Animated.View 
                 key={sitter.id}
@@ -102,9 +109,15 @@ export function NearbySitters({
                       )}
                     </View>
                     <View style={styles.ratingContainer}>
-                      <Star size={16} color="#FFD700" fill="#FFD700" />
-                      <Text style={styles.ratingText}>{sitter.rating}</Text>
-                      <Text style={styles.reviewsText}>({sitter.reviews} reviews)</Text>
+                      {sitter.reviews > 0 ? (
+                        <>
+                          <Star size={16} color="#FFD700" fill="#FFD700" />
+                          <Text style={styles.ratingText}>{sitter.rating}</Text>
+                          <Text style={styles.reviewsText}>({sitter.reviews} reviews)</Text>
+                        </>
+                      ) : (
+                        <Text style={styles.noReviewsText}>No ratings or reviews</Text>
+                      )}
                     </View>
                     <View style={styles.locationContainer}>
                       <MapPin size={14} color="#8E8E93" />
@@ -316,5 +329,10 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontFamily: 'Poppins-Medium',
     fontSize: 14,
+  },
+  noReviewsText: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 12,
+    color: '#8E8E93',
   },
 }); 

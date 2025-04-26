@@ -3,13 +3,14 @@ module.exports = {
   slug: "pickpup-app",
   version: "1.0.0",
   orientation: "portrait",
-  icon: "./assets/images/icon.png",
+  icon: "./assets/images/pikpupUserIcon.png",
   userInterfaceStyle: "light",
   // Removed splash block
   assetBundlePatterns: [
     "**/*"
   ],
   ios: {
+    icon: "./assets/images/pikpupUserIcon.png",
     supportsTablet: true,
     bundleIdentifier: "com.pikpup.app",
     buildNumber: '2',
@@ -19,7 +20,7 @@ module.exports = {
   },
   android: {
     adaptiveIcon: {
-      foregroundImage: "./assets/images/adaptive-icon.png",
+      foregroundImage: "./assets/images/pikpupUserIcon.png",
       backgroundColor: "#ffffff"
     },
     package: "com.dogsitter.app"
@@ -43,6 +44,14 @@ module.exports = {
         // This is needed to support Apple Pay
         merchantIdentifier: "merchant.com.dogsitter",
         enableGooglePay: true
+      }
+    ],
+    [
+      "expo-location",
+      {
+        locationWhenInUsePermission: "PikPup needs your location to show nearby sitters.",
+        locationAlwaysAndWhenInUsePermission: "PikPup needs your location when the app is in the background to update sitter availability.",
+        locationAlwaysPermission: "PikPup needs your location even when the app is not on screen."
       }
     ]
   ]

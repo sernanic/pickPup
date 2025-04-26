@@ -376,8 +376,8 @@ export const useSitterStore = create<SitterState>((set, get) => ({
           sittersWithDetails.push({
             id: sitter.id,
             name: sitter.name || 'Unknown Sitter',
-            rating: averageRating || 4.8,
-            reviews: totalReviews || 24,
+            rating: averageRating || 0,
+            reviews: totalReviews || 0,
             distance,
             price: displayPrice,
             priceLabel,
@@ -438,14 +438,18 @@ export const useSitterStore = create<SitterState>((set, get) => ({
   },
   
   filterSitters: (filters: SitterFilters) => {
-    const { sitters } = get();
+    // Get sitters that are already filtered by the user's max distance preference
+    const { sitters, filteredSitters } = get();
     const { user } = useAuthStore.getState();
+    
+    // Use the filteredSitters (already filtered by user's max distance setting) as the base
+    const sittersToFilter = filteredSitters.length > 0 ? filteredSitters : sitters;
     
     // Get the effective max distance (from filters, or user preference, or unlimited)
     const effectiveMaxDistance = filters.maxDistance || (user ? user.maxDistance : undefined);
     
     // Apply filtering logic
-    const filtered = sitters.filter(sitter => {
+    const filtered = sittersToFilter.filter(sitter => {
       // Filter by search query
       if (filters.searchQuery && !sitter.name.toLowerCase().includes(filters.searchQuery.toLowerCase())) {
         return false;
@@ -477,8 +481,8 @@ export const useSitterStore = create<SitterState>((set, get) => ({
         if (!priceRangeMatch) return false;
       }
 
-      // Filter by max distance (this is now always applied if effectiveMaxDistance is defined)
-      if (effectiveMaxDistance !== undefined && sitter.distance > effectiveMaxDistance) {
+      // Apply additional distance filter if provided in the filters
+      if (filters.maxDistance !== undefined && sitter.distance > filters.maxDistance) {
         return false;
       }
 

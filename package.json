@@ -9,7 +9,9 @@
     "lint": "expo lint",
     "list": "node scripts/dev.js list",
     "generate": "node scripts/dev.js generate",
-    "parse-prd": "node scripts/dev.js parse-prd"
+    "parse-prd": "node scripts/dev.js parse-prd",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",

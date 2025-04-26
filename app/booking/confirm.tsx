@@ -116,7 +116,7 @@ export default function ConfirmBookingScreen() {
           duration += 24;
         }
         
-        return Math.max(0.5, duration); // Return at least 30 minutes (0.5 hours)
+        return Math.max(1, duration); // Return at least 30 minutes (0.5 hours)
       } catch (error) {
         console.error('Error calculating duration:', error);
         return 1; // Default to 1 hour if calculation fails

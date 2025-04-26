@@ -19,16 +19,22 @@ export function FeaturedSitters({
   limit = 5 
 }: FeaturedSittersProps) {
   const router = useRouter();
-  const { sitters, fetchSitters, isLoading, error } = useSitterStore();
+  const { filteredSitters, fetchSitters, isLoading, error } = useSitterStore();
+  
+  // Ensure sitters are fetched when component mounts
+  useEffect(() => {
+    if (filteredSitters.length === 0) {
+      fetchSitters();
+    }
+  }, []);
   
   // Get the top-rated sitters (limited to specified count)
-  const featuredSitters = sitters
+  const featuredSitters = filteredSitters
     .slice(0, limit)
     .map(sitter => ({
       ...sitter,
       coverImage: sitter.background_url || 'https://images.unsplash.com/photo-1568640347023-a616a30bc3bd?q=80&w=400&auto=format&fit=crop'
     }));
-  
   
   const handleSitterPress = (sitter: any) => {
     if (onSitterPress) {
@@ -85,33 +91,37 @@ export function FeaturedSitters({
                     <Text style={styles.featuredSitterName}>{item.name} </Text>
                     
                     <View style={styles.ratingContainer}>
-                      <View style={styles.starsContainer}>
-                        {[...Array(5)].map((_, i) => (
-                          <Star 
-                            key={i}
-                            size={16} 
-                            color="#FFD700" 
-                            fill={i < Math.floor(item.rating) ? "#FFD700" : "transparent"}
-                          />
-                        ))}
-                      </View>
-                      <Text style={styles.reviewsText}>({item.reviews} review{item.reviews !== 1 ? 's' : ''})</Text>
+                      {item.reviews > 0 ? (
+                        <>
+                          <View style={styles.starsContainer}>
+                            {[...Array(5)].map((_, i) => (
+                              <Star 
+                                key={i}
+                                size={16} 
+                                color="#FFD700" 
+                                fill={i < Math.floor(item.rating) ? "#FFD700" : "transparent"}
+                              />
+                            ))}
+                          </View>
+                          <Text style={styles.reviewsText}>({item.reviews} review{item.reviews !== 1 ? 's' : ''})</Text>
+                        </>
+                      ) : (
+                        <Text style={styles.noReviewsText}>No ratings or reviews</Text>
+                      )}
                     </View>
                     
                     <View style={styles.priceContainer}>
-                      <Text style={styles.priceText}>${item.price}<Text style={styles.priceUnit}>/night</Text></Text>
+                      <Text style={styles.priceText}>${item.price}<Text style={styles.priceUnit}>{item.priceLabel}</Text></Text>
                     </View>
                     
                     <View style={styles.servicesContainer}>
-                      {item.services && item.services.includes('Boarding') && (
-                        <View style={styles.serviceTag}>
-                          <Text style={styles.serviceTagText}>Boarding</Text>
+                      {item.services && item.services.slice(0, 2).map((service, index) => (
+                        <View key={index} style={styles.serviceTag}>
+                          <Text style={styles.serviceTagText}>{service}</Text>
                         </View>
-                      )}
-                      {item.services && item.services.includes('Walking') && (
-                        <View style={styles.serviceTag}>
-                          <Text style={styles.serviceTagText}>Walking</Text>
-                        </View>
+                      ))}
+                      {item.services && item.services.length > 2 && (
+                        <Text style={styles.moreServicesText}>+{item.services.length - 2} more</Text>
                       )}
                     </View>
                   </View>
@@ -265,5 +275,16 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Regular',
     fontSize: 14,
     color: '#63C7B8',
+  },
+  moreServicesText: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 12,
+    color: '#63C7B8',
+    marginLeft: 4,
+  },
+  noReviewsText: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 14,
+    color: '#8E8E93',
   },
 }); 
