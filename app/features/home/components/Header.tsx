@@ -1,18 +1,27 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Bell } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 
 interface HeaderProps {
   userName: string; // Still keeping this for compatibility
-  hasNotifications?: boolean;
   onPressNotification?: () => void;
 }
 
 export function Header({ 
   userName, 
-  hasNotifications = true, 
-  onPressNotification = () => {} 
+  onPressNotification
 }: HeaderProps) {
+  const router = useRouter();
+  
+  const handleNotificationPress = () => {
+    if (onPressNotification) {
+      onPressNotification();
+    } else {
+      router.push('/notifications');
+    }
+  };
+  
   return (
     <View style={styles.header}>
       <View style={styles.logoContainer}>
@@ -24,10 +33,9 @@ export function Header({
       </View>
       <TouchableOpacity 
         style={styles.notificationButton}
-        onPress={onPressNotification}
+        onPress={handleNotificationPress}
       >
         <Bell size={24} color="#1A1A1A" />
-        {hasNotifications && <View style={styles.notificationBadge} />}
       </TouchableOpacity>
     </View>
   );

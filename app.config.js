@@ -39,6 +39,14 @@ module.exports = {
   },
   plugins: [
     [
+      "expo-notifications",
+      {
+        "icon": "./assets/images/pikpupUserIcon.png", 
+        "color": "#62C6B9", 
+        "sounds": []
+      }
+    ],
+    [
       "@stripe/stripe-react-native",
       {
         // This is needed to support Apple Pay

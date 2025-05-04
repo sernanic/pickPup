@@ -16,8 +16,9 @@ export default function SelectTimeScreen() {
   
   // Fix the date parameter to correct the off-by-one day issue
   const rawDate = params.date as string;
-  const fixedDate = adjustDateIfNeeded(rawDate);
-  const date = fixedDate;
+  // const fixedDate = adjustDateIfNeeded(rawDate);
+  // const date = fixedDate;
+  const date = rawDate; // Use the raw date directly
   
   const weekday = params.weekday;
   
@@ -62,7 +63,20 @@ export default function SelectTimeScreen() {
     if (!dateString) return '';
     
     try {
-      const date = new Date(dateString);
+      // Parse YYYY-MM-DD manually to avoid UTC interpretation
+      const parts = dateString.split('-');
+      if (parts.length !== 3) {
+        console.warn('Invalid date format for display:', dateString);
+        return dateString; // Return original if format is wrong
+      }
+      
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1; // JS months are 0-indexed
+      const day = parseInt(parts[2], 10);
+      
+      // Construct date using local timezone components
+      const date = new Date(year, month, day);
+      
       if (isNaN(date.getTime())) {
         return dateString; // Return as is if invalid
       }

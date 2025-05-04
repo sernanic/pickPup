@@ -161,7 +161,7 @@ export default function ConversationScreen() {
       setNewMessage('');
       
       // Create a temporary message object to show immediately
-      const tempMessage = {
+      const tempMsg = {
         id: `temp-${Date.now()}`,
         thread_id: thread.id,
         sender_id: user.id,
@@ -171,32 +171,49 @@ export default function ConversationScreen() {
       };
       
       // Optimistically update the UI
-      setMessages(current => [...current, tempMessage]);
+      setMessages(current => [...current, tempMsg]);
       
       // Then send to the server
-      const { data, error } = await supabase
+      const { data: messageData, error } = await supabase
         .from('messages')
         .insert([
-          {
-            thread_id: thread.id,
-            sender_id: user.id,
-            content: messageContent,
-            is_read: false
-          }
+          { thread_id: thread.id, sender_id: user.id, content: messageContent, is_read: false }
         ])
-        .select();
+        .select()
+        .single();
       
       if (error) throw error;
+
+      // Replace temp with real message
+      setMessages(curr => curr.filter(m => m.id !== tempMsg.id).concat(messageData));
       
-      // If we got data back, replace the temp message with the real one
-      if (data && data[0]) {
-        setMessages(current => 
-          current.filter(msg => msg.id !== tempMessage.id).concat(data[0])
-        );
+      // Trigger the send-notifications function after successful message insertion
+      if (messageData && thread) {
+        // The backend function expects a payload similar to a DB webhook
+        const payload = {
+          type: 'INSERT',
+          table: 'messages',
+          schema: 'public',
+          record: messageData,
+          old_record: null // No old record for an INSERT event
+        };
+
+        // Asynchronously invoke the function, don't wait for the response
+        supabase.functions.invoke('send-notification', { body: payload })
+          .then(({ data, error }) => {
+            if (error) {
+              console.error('Error invoking send-notification function:', error);
+              // Optionally inform the user, but usually notification errors are silent
+            } else {
+              console.log('Successfully invoked send-notification function.');
+            }
+          })
+          .catch(invokeError => {
+            console.error('Exception invoking send-notification function:', invokeError);
+          });
       }
-      
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.log('Error sending message:', error);
       // On error, show an error toast or notification
     } finally {
       setSending(false);

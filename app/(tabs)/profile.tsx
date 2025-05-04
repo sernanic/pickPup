@@ -14,10 +14,12 @@ import {
 import { ChevronRight, Bell, Shield, CreditCard, CircleHelp as HelpCircle, LogOut, MapPin, DogIcon, User, Settings, Camera, X, Ruler, Heart } from 'lucide-react-native';
 import Slider from '@react-native-community/slider';
 import { AccountEditModal } from '../components/AccountEditModal';
+import { registerForPushNotificationsAsync, updatePushTokenInSupabase } from '../../services/notificationService';
 
 export default function ProfileScreen() {
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [locationEnabled, setLocationEnabled] = useState(true);
+  const [updatingNotifications, setUpdatingNotifications] = useState(false);
   const { user, logout } = useAuthStore();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -59,6 +61,8 @@ export default function ProfileScreen() {
         setProfile(data);
         // Set initial max distance from profile
         setMaxDistance(parseInt(data.maxdistance || '25', 10));
+        // Set initial notifications preference from profile
+        setNotificationsEnabled(data.notifications_enabled || false);
       } catch (error) {
         console.error('Error loading profile:', error);
       } finally {
@@ -164,23 +168,80 @@ export default function ProfileScreen() {
     try {
       setUpdatingDistance(true);
       
-      // Use the updateMaxDistance function from authStore
-      const success = await useAuthStore.getState().updateMaxDistance(maxDistance);
-      
-      if (success) {
-        // Update local profile state
-        setProfile(prev => prev ? { ...prev, maxdistance: maxDistance.toString() } : null);
-        
-        Alert.alert('Success', 'Your maximum distance preference has been updated!');
-        setShowMaxDistanceModal(false);
-      } else {
-        throw new Error('Failed to update maximum distance');
+      // Update the maxdistance value in the profile
+      const { error } = await supabase
+        .from('profiles')
+        .update({ maxdistance: maxDistance.toString() })
+        .eq('id', user.id);
+
+      if (error) {
+        throw error;
       }
-    } catch (error: any) {
+
+      // Update local profile state
+      setProfile(prev => {
+        if (!prev) return null;
+        return { ...prev, maxdistance: maxDistance.toString() };
+      });
+      
+      setShowMaxDistanceModal(false);
+      Alert.alert('Success', 'Your search radius has been updated.');
+    } catch (error) {
       console.error('Error updating max distance:', error);
-      Alert.alert('Error', `Failed to update: ${error.message || 'Unknown error'}`);
+      Alert.alert('Error', 'Failed to update your search radius. Please try again.');
     } finally {
       setUpdatingDistance(false);
+    }
+  };
+
+  // Handle toggling notifications preference
+  const toggleNotifications = async () => {
+    if (!user) return;
+    
+    try {
+      setUpdatingNotifications(true);
+      const newValue = !notificationsEnabled;
+      
+      // If enabling notifications, request permission and get token
+      let token = null;
+      if (newValue) {
+        // Register for push notifications and get token
+        token = await registerForPushNotificationsAsync();
+        
+        // If token couldn't be obtained, show an alert but continue
+        if (!token) {
+          console.log('No push token obtained');
+          Alert.alert(
+            'Notification Permission',
+            'We weren\'t able to get permission for notifications. You can enable them in your device settings.',
+            [{ text: 'OK' }]
+          );
+          // We'll still update the preference in case permissions are granted later
+        }
+      }
+      
+      // Update the notifications_enabled value in Supabase
+      await updatePushTokenInSupabase(token, user.id, newValue);
+      
+      // Update local state
+      setNotificationsEnabled(newValue);
+      setProfile(prev => {
+        if (!prev) return null;
+        return { ...prev, notifications_enabled: newValue };
+      });
+      
+      // Show feedback to user
+      Alert.alert(
+        'Notifications ' + (newValue ? 'Enabled' : 'Disabled'),
+        newValue ? 
+          'You will now receive notifications for new messages and booking updates.' : 
+          'You will no longer receive notifications from this app.'
+      );
+    } catch (error) {
+      console.error('Error updating notification settings:', error);
+      Alert.alert('Error', 'Failed to update notification settings. Please try again.');
+    } finally {
+      setUpdatingNotifications(false);
     }
   };
 
@@ -339,12 +400,17 @@ export default function ProfileScreen() {
               <Text style={styles.settingLabel}>Notifications</Text>
               <Text style={styles.settingDescription}>Receive app notifications</Text>
             </View>
-            <Switch
-              value={notificationsEnabled}
-              onValueChange={() => setNotificationsEnabled(!notificationsEnabled)}
-              trackColor={{ false: '#D1D1D6', true: '#A8DEDA' }}
-              thumbColor={notificationsEnabled ? '#62C6B9' : '#F4F3F4'}
-            />
+            {updatingNotifications ? (
+              <ActivityIndicator size="small" color="#63C7B8" />
+            ) : (
+              <Switch
+                value={notificationsEnabled}
+                onValueChange={toggleNotifications}
+                trackColor={{ false: '#D1D1D6', true: '#A8DEDA' }}
+                thumbColor={notificationsEnabled ? '#62C6B9' : '#F4F3F4'}
+                disabled={updatingNotifications}
+              />
+            )}
           </View>
 
           <View style={styles.settingItemWithSwitch}>

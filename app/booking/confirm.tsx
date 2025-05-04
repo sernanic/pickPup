@@ -655,8 +655,50 @@ export default function ConfirmBookingScreen() {
   
   // Handle successful payment
   const handlePaymentSuccess = async (paymentIntentData: PaymentIntentResult) => {
-    // Create a message thread with the booking ID from the payment result
-    await createMessageThread(paymentIntentData.bookingId);
+    try {
+      // ---> Send Notification for New Booking <---
+      // Determine which table the booking belongs to
+      const bookingTable = mode === 'walking' ? 'walking_bookings' : 'boarding_bookings';
+
+      // Create the notification payload
+      const notificationPayload = {
+        type: 'INSERT', // Using INSERT mimics DB trigger; backend needs to handle this type
+        table: bookingTable,
+        schema: 'public',
+        record: {
+          id: paymentIntentData.bookingId,
+          sitter_id: sitterId,
+          owner_id: user?.id,
+          notification_type: 'NEW_BOOKING' // Custom field for backend logic
+        },
+        old_record: null // Indicates this is a new booking
+      };
+
+      console.log('Invoking send-notification for new booking:', notificationPayload);
+      
+      // Invoke the Supabase edge function to send the notification
+      await supabase.functions.invoke('send-notification', { 
+        body: notificationPayload 
+      })
+      .then(({ data, error }) => {
+        if (error) {
+          console.error('Error invoking send-notification for new booking:', error);
+        } else {
+          console.log('Successfully invoked send-notification for new booking. Response:', data);
+        }
+      })
+      .catch(error => {
+        console.error('Exception invoking send-notification for new booking:', error);
+      });
+      // ---> End Notification Send <---
+
+      // Create a message thread with the booking ID from the payment result
+      await createMessageThread(paymentIntentData.bookingId);
+    } catch (error) {
+      console.error('Error in handlePaymentSuccess:', error);
+      // Continue with thread creation even if notification fails
+      await createMessageThread(paymentIntentData.bookingId);
+    }
   };
 
   const createMessageThread = async (bookingId: string) => {

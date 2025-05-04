@@ -371,13 +371,29 @@ export default function AvailabilityScreen() {
       return;
     }
     
+    // Parse the date string reliably to avoid timezone issues
+    const parts = walkingSelectedDate.split('-');
+    let weekdayNum = 0;
+    if (parts.length === 3) {
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1; // JS months are 0-indexed
+      const day = parseInt(parts[2], 10);
+      const localDate = new Date(year, month, day); // Creates date in local timezone
+      weekdayNum = localDate.getDay();
+    } else {
+      // Fallback or error handling if date format is unexpected
+      console.error("Unexpected date format in handleWalkingTimeSelection:", walkingSelectedDate);
+      // Attempt default JS Date parsing as a fallback
+      weekdayNum = new Date(walkingSelectedDate).getDay(); 
+    }
+    
     router.push({
       pathname: '/booking/select-time',
       params: {
         sitterId: params.id as string,
         serviceId: 'walking',
         date: walkingSelectedDate,
-        weekday: new Date(walkingSelectedDate).getDay().toString()
+        weekday: weekdayNum.toString() // Use the reliably calculated weekday
       },
     });
   };
