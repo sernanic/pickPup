@@ -18,7 +18,7 @@ export async function getAddressesByProfileId(profileId: string): Promise<Addres
     if (error) throw error;
     return data || [];
   } catch (error) {
-    console.error('Error fetching useraddress:', error);
+    console.log('Error fetching useraddress:', error);
     throw error;
   }
 }
@@ -51,7 +51,7 @@ export async function upsertAddress(address: Partial<Address>): Promise<Address>
     if (error) throw error;
     return data;
   } catch (error) {
-    console.error('Error saving address:', error);
+    console.log('Error saving address:', error);
     throw error;
   }
 }
@@ -78,7 +78,7 @@ export async function setPrimaryAddress(addressId: string, profileId: string): P
 
     if (error) throw error;
   } catch (error) {
-    console.error('Error setting primary address:', error);
+    console.log('Error setting primary address:', error);
     throw error;
   }
 }
@@ -96,7 +96,7 @@ export async function deleteAddress(addressId: string, profileId: string): Promi
 
     if (error) throw error;
   } catch (error) {
-    console.error('Error deleting address:', error);
+    console.log('Error deleting address:', error);
     throw error;
   }
 } 

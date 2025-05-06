@@ -46,7 +46,7 @@ export default function LoginScreen() {
       await login(email, password);
       // Don't check error state here - it's updated asynchronously
     } catch (err) {
-      console.error('Login error:', err);
+      console.log('Login error:', err);
     }
   };
 

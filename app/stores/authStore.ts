@@ -115,7 +115,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           .maybeSingle(); // Use maybeSingle instead of single to avoid errors if no rows found
         
         if (fetchError || !existingProfile) {
-          console.error('Failed to get or create profile:', fetchError || 'No profile created');
+          console.log('Failed to get or create profile:', fetchError || 'No profile created');
           // Sign out user if we can't create or find their profile
           await supabase.auth.signOut();
           throw new Error('Failed to create user profile');
@@ -135,7 +135,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         error: null
       });
     } catch (error: any) {
-      console.error('Registration error:', error);
+      console.log('Registration error:', error);
       set({ 
         error: error.message, 
         isLoading: false,
@@ -206,7 +206,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({ user: null, isLoading: false, initialized: true });
       }
     } catch (error: any) {
-      console.error('Error loading user:', error.message);
+      console.log('Error loading user:', error.message);
       // Make sure to clear any potentially corrupted auth state
       await supabase.auth.signOut();
       set({ 
@@ -245,7 +245,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       
       return true;
     } catch (error: any) {
-      console.error('Error updating max distance:', error);
+      console.log('Error updating max distance:', error);
       set({ error: error.message, isLoading: false });
       return false;
     }

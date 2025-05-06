@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
     try {
       parsedPets = JSON.parse(selected_pets)
     } catch (e) {
-      console.error('Error parsing selected_pets:', e)
+      console.log('Error parsing selected_pets:', e)
       return new Response(
         JSON.stringify({ error: 'Invalid selected_pets format' }),
         {
@@ -82,7 +82,7 @@ Deno.serve(async (req) => {
     
     // Check if sitter has a Stripe account
     if (!sitterProfile?.stripe_account_id) {
-      console.error('Sitter does not have a Stripe account set up')
+      console.log('Sitter does not have a Stripe account set up')
       return new Response(
         JSON.stringify({ error: 'This sitter is not set up to receive payments yet' }),
         {
@@ -138,7 +138,7 @@ Deno.serve(async (req) => {
           .maybeSingle(); // Use maybeSingle instead of single to avoid error if no rows found
           
         if (availabilityError) {
-          console.error('Error finding availability slot:', availabilityError);
+          console.log('Error finding availability slot:', availabilityError);
         } else if (availabilityData) {
           availability_slot_id = availabilityData.id;
           console.log(`Found availability_slot_id: ${availability_slot_id} for weekday: ${weekday}`);
@@ -153,7 +153,7 @@ Deno.serve(async (req) => {
             .maybeSingle();
             
           if (anySlotError) {
-            console.error('Error finding any availability slot:', anySlotError);
+            console.log('Error finding any availability slot:', anySlotError);
           } else if (anySlotData) {
             availability_slot_id = anySlotData.id;
             console.log(`Found fallback availability_slot_id: ${availability_slot_id}`);
@@ -217,7 +217,7 @@ Deno.serve(async (req) => {
     }
 
     if (bookingError || !booking) {
-      console.error('Booking error:', bookingError);
+      console.log('Booking error:', bookingError);
       throw new Error('Failed to create booking')
     }
 
@@ -266,7 +266,7 @@ Deno.serve(async (req) => {
       }
     )
   } catch (error) {
-    console.error('Error in init-payment:', error)
+    console.log('Error in init-payment:', error)
     return new Response(
       JSON.stringify({ 
         error: error.message,

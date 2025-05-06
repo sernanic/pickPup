@@ -18,7 +18,7 @@ export function NearbySitters({
   animationDelay = 400,
   maxDistance
 }: NearbySittersProps) {
-  const { sitters, filteredSitters, fetchSitters, isLoading, error, filterSitters } = useSitterStore();
+  const { sitters, fetchSitters, isLoading, error } = useSitterStore();
   const { user } = useAuthStore();
   const { 
     favoriteIds, 
@@ -37,29 +37,20 @@ export function NearbySitters({
     }
     // No need to include fetchSitters in the dependency array
     // as it should be a stable reference from the store
-  }, []);
+  }, [sitters.length]);
 
   // Fetch favorites when component mounts
   useEffect(() => {
     fetchFavorites();
   }, []);
   
-  // Apply distance filter when effective distance changes or sitters data is updated
-  useEffect(() => {
-    // Only filter if we already have sitters loaded to avoid unnecessary calls
-    if (sitters.length > 0 && !isLoading) {
-      filterSitters({ 
-        serviceTypes: [], 
-        priceRanges: [], 
-        maxDistance: effectiveMaxDistance 
-      });
-    }
-  }, [effectiveMaxDistance, sitters]);
-  
-  // Use useMemo to sort the FILTERED sitters (not all sitters) by distance
-  const sortedSitters = useMemo(() => {
-    return [...filteredSitters].sort((a, b) => a.distance - b.distance);
-  }, [filteredSitters]);
+  // Perform local filtering and sorting using the master sitters list
+  const nearbySittersToDisplay = useMemo(() => {
+    if (!sitters) return [];
+    return sitters
+      .filter(sitter => sitter.distance <= effectiveMaxDistance)
+      .sort((a, b) => a.distance - b.distance);
+  }, [sitters, effectiveMaxDistance]);
 
   const handleToggleFavorite = async (sitterId: string) => {
     await toggleFavorite(sitterId);
@@ -75,7 +66,7 @@ export function NearbySitters({
           </View>
         ) : error ? (
           <Text style={styles.errorText}>{error}</Text>
-        ) : sortedSitters.length === 0 ? (
+        ) : nearbySittersToDisplay.length === 0 ? (
           <View style={styles.emptyStateContainer}>
             <Text style={styles.emptyText}>
               No sitters found within {effectiveMaxDistance} miles of your location.
@@ -88,8 +79,8 @@ export function NearbySitters({
             </TouchableOpacity>
           </View>
         ) : (
-          // Map the filtered and sorted sitters
-          sortedSitters.map((sitter, index) => (
+          // Map the locally filtered and sorted sitters
+          nearbySittersToDisplay.map((sitter, index) => (
               <Animated.View 
                 key={sitter.id}
                 entering={FadeInRight.delay(index * 100).duration(500)}

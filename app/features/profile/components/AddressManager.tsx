@@ -44,7 +44,7 @@ export function AddressManager({
       const addressList = await getAddressesByProfileId(user.id);
       setAddresses(addressList);
     } catch (err) {
-      console.error('Error loading addresses:', err);
+      console.log('Error loading addresses:', err);
       setError('Failed to load addresses. Please try again.');
     } finally {
       setLoading(false);
@@ -90,7 +90,7 @@ export function AddressManager({
       // Refresh addresses to ensure we have the latest data
       loadAddresses();
     } catch (err) {
-      console.error('Error saving address:', err);
+      console.log('Error saving address:', err);
       Alert.alert('Error', 'Failed to save address. Please try again.');
     } finally {
       setLoading(false);
@@ -116,7 +116,7 @@ export function AddressManager({
       // Refresh addresses to ensure we have the latest data
       loadAddresses();
     } catch (err) {
-      console.error('Error setting primary address:', err);
+      console.log('Error setting primary address:', err);
       Alert.alert('Error', 'Failed to set primary address. Please try again.');
     } finally {
       setLoading(false);
@@ -156,7 +156,7 @@ export function AddressManager({
                 await handleSetPrimary(remainingAddresses[0].id);
               }
             } catch (err) {
-              console.error('Error deleting address:', err);
+              console.log('Error deleting address:', err);
               Alert.alert('Error', 'Failed to delete address. Please try again.');
             } finally {
               setLoading(false);

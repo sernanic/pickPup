@@ -89,7 +89,7 @@ export default function SelectPetsScreen() {
       
       setPets(data || []);
     } catch (err: any) {
-      console.error('Error fetching pets:', err);
+      console.log('Error fetching pets:', err);
       setError(err.message || 'Failed to load pets');
     } finally {
       setLoading(false);

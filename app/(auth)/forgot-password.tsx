@@ -19,7 +19,7 @@ export default function ForgotPasswordScreen() {
         Alert.alert('Error', error);
       }
     } catch (err) {
-      console.error('Password reset error:', err);
+      console.log('Password reset error:', err);
     }
   };
 

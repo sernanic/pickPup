@@ -96,7 +96,7 @@ export default function PupOnboardingScreen() {
         const { data: urlData } = supabase.storage.from('pets').getPublicUrl(filePath);
         newPet.image_url = urlData.publicUrl;
       } catch (err: any) {
-        console.error('Error uploading image:', err);
+        console.log('Error uploading image:', err);
         Alert.alert('Upload Error','There was a problem uploading your pet image, but we will still add without image.');
       } finally { setIsUploading(false); }
     }
@@ -115,7 +115,7 @@ export default function PupOnboardingScreen() {
       // router.push('/(auth)/location-onboarding');
       Alert.alert('Success','Your pet has been added successfully!');
     } catch (err: any) {
-      console.error('Error adding pet:', err);
+      console.log('Error adding pet:', err);
       console.log('Pet save failed, navigation skipped.'); 
       Alert.alert('Error',err.message || 'Failed to add pet. Please try again.');
     } finally { setIsAdding(false); }

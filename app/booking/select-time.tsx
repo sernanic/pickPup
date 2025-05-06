@@ -53,7 +53,7 @@ export default function SelectTimeScreen() {
       
       return `${adjustedYear}-${adjustedMonth}-${adjustedDay}`;
     } catch (e) {
-      console.error('Error adjusting date:', e);
+      console.log('Error adjusting date:', e);
       return dateStr; // Return original if parsing fails
     }
   }
@@ -82,7 +82,7 @@ export default function SelectTimeScreen() {
       }
       return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
     } catch (error) {
-      console.error('Error formatting date:', error);
+      console.log('Error formatting date:', error);
       return dateString;
     }
   };
@@ -99,7 +99,7 @@ export default function SelectTimeScreen() {
       const displayHours = hours % 12 || 12;
       return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
     } catch (error) {
-      console.error('Error formatting time:', error);
+      console.log('Error formatting time:', error);
       return timeString;
     }
   };
@@ -129,7 +129,7 @@ export default function SelectTimeScreen() {
       
       return timeSlots;
     } catch (error) {
-      console.error('Error generating time slots:', error);
+      console.log('Error generating time slots:', error);
       setError('Failed to generate time slots. Please try again.');
       return [];
     }
@@ -178,7 +178,7 @@ export default function SelectTimeScreen() {
         .or('status.eq.pending,status.eq.confirmed');
       
       if (bookingsError) {
-        console.error('Error fetching existing bookings:', bookingsError);
+        console.log('Error fetching existing bookings:', bookingsError);
       }
       
       // Create a set of booked time slots
@@ -218,7 +218,7 @@ export default function SelectTimeScreen() {
       setBookedTimeSlots(bookedSlotsSet);
       setAllTimeSlots(allPossibleTimeSlots);
     } catch (error) {
-      console.error('Error fetching available time slots:', error);
+      console.log('Error fetching available time slots:', error);
       setError('Failed to load available time slots. Please try again.');
     } finally {
       setLoading(false);

@@ -47,7 +47,7 @@ export default function RegisterScreen() {
       // On success, navigate to pup onboarding
       router.replace('/(auth)/pup-onboarding');
     } catch (err: any) {
-      console.error('Registration failed:', err);
+      console.log('Registration failed:', err);
       setFormError(err.message || 'An unexpected error occurred');
     }
   };

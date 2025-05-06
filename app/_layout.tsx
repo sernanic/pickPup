@@ -87,7 +87,7 @@ export default function RootLayout() {
         
         // Initialize notification system
       } catch (e) {
-        console.error('Error loading user:', e);
+        console.log('Error loading user:', e);
       } finally {
         try {
           // Hide splash screen after auth is initialized
@@ -123,7 +123,7 @@ export default function RootLayout() {
           }
         })
         .catch(error => {
-          console.error('RootLayout: Error during push notification registration:', error);
+          console.log('RootLayout: Error during push notification registration:', error);
           // Optionally update Supabase to disable notifications on error
           // updatePushTokenInSupabase(null, user.id, false); 
         });

@@ -59,7 +59,7 @@ export default function AvailabilityScreen() {
         setFilteredWalkingSlots(data.walkingSlots);
         setUnavailableDates(data.unavailableDates);
       } catch (err: any) {
-        console.error('Error fetching data:', err);
+        console.log('Error fetching data:', err);
         setError(err.message || 'Failed to load availability data');
       } finally {
         setLoading(false);
@@ -237,7 +237,7 @@ export default function AvailabilityScreen() {
       }
       return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
     } catch (error) {
-      console.error('Error formatting date:', error);
+      console.log('Error formatting date:', error);
       return dateString;
     }
   };
@@ -349,7 +349,7 @@ export default function AvailabilityScreen() {
       
       setWalkingMarkedDates(newMarkedDates);
     } catch (error) {
-      console.error('Error fetching walking dates:', error);
+      console.log('Error fetching walking dates:', error);
       Toast.show({ 
         type: 'error', 
         text1: 'Error', 
@@ -382,7 +382,7 @@ export default function AvailabilityScreen() {
       weekdayNum = localDate.getDay();
     } else {
       // Fallback or error handling if date format is unexpected
-      console.error("Unexpected date format in handleWalkingTimeSelection:", walkingSelectedDate);
+      console.log("Unexpected date format in handleWalkingTimeSelection:", walkingSelectedDate);
       // Attempt default JS Date parsing as a fallback
       weekdayNum = new Date(walkingSelectedDate).getDay(); 
     }

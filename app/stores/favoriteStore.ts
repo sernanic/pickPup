@@ -83,7 +83,7 @@ export const useFavoriteStore = create<FavoriteState>((set, get) => ({
         isLoading: false
       });
     } catch (err: any) {
-      console.error('Error fetching favorites:', err);
+      console.log('Error fetching favorites:', err);
       set({ 
         error: err.message, 
         isLoading: false 
@@ -120,7 +120,7 @@ export const useFavoriteStore = create<FavoriteState>((set, get) => ({
       
       return true;
     } catch (err: any) {
-      console.error('Error adding favorite:', err);
+      console.log('Error adding favorite:', err);
       set({ error: err.message });
       return false;
     }
@@ -153,7 +153,7 @@ export const useFavoriteStore = create<FavoriteState>((set, get) => ({
       
       return true;
     } catch (err: any) {
-      console.error('Error removing favorite:', err);
+      console.log('Error removing favorite:', err);
       set({ error: err.message });
       return false;
     }

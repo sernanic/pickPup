@@ -157,7 +157,7 @@ export default function BookingsScreen() {
           try {
             petsData = JSON.parse(booking.selected_pets);
           } catch (e) {
-            console.error('Error parsing selected_pets JSON:', e);
+            console.log('Error parsing selected_pets JSON:', e);
           }
         } else if (Array.isArray(booking.selected_pets)) {
           petsData = booking.selected_pets;
@@ -201,7 +201,7 @@ export default function BookingsScreen() {
           try {
             petsData = JSON.parse(booking.selected_pets);
           } catch (e) {
-            console.error('Error parsing pet data', e);
+            console.log('Error parsing pet data', e);
           }
         } else if (Array.isArray(booking.selected_pets)) {
           petsData = booking.selected_pets;
@@ -267,7 +267,7 @@ export default function BookingsScreen() {
       
       setBookings(formattedBookings);
     } catch (error) {
-      console.error('Error fetching bookings:', error);
+      console.log('Error fetching bookings:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -534,7 +534,7 @@ export default function BookingsScreen() {
                                 const { data: existingThreads, error: threadError } = await threadQuery.single();
                                 
                                 if (threadError && threadError.code !== 'PGRST116') {
-                                  console.error('Error checking message thread:', threadError);
+                                  console.log('Error checking message thread:', threadError);
                                   return;
                                 }
                                 
@@ -579,7 +579,7 @@ export default function BookingsScreen() {
                                   .single();
                                 
                                 if (createError) {
-                                  console.error('Error creating message thread:', createError);
+                                  console.log('Error creating message thread:', createError);
                                   return;
                                 }
                                 
@@ -589,7 +589,7 @@ export default function BookingsScreen() {
                                   router.push(`/conversation/${newThread.id}`);
                                 }
                               } catch (error) {
-                                console.error('Error with messaging:', error);
+                                console.log('Error with messaging:', error);
                               }
                             }}
                           >

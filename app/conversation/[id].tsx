@@ -102,7 +102,7 @@ export default function ConversationScreen() {
           }
         }
       } catch (error) {
-        console.error('Error fetching conversation:', error);
+        console.log('Error fetching conversation:', error);
       } finally {
         setLoading(false);
       }
@@ -202,14 +202,14 @@ export default function ConversationScreen() {
         supabase.functions.invoke('send-notification', { body: payload })
           .then(({ data, error }) => {
             if (error) {
-              console.error('Error invoking send-notification function:', error);
+              console.log('Error invoking send-notification function:', error);
               // Optionally inform the user, but usually notification errors are silent
             } else {
               console.log('Successfully invoked send-notification function.');
             }
           })
           .catch(invokeError => {
-            console.error('Exception invoking send-notification function:', invokeError);
+            console.log('Exception invoking send-notification function:', invokeError);
           });
       }
     } catch (error) {

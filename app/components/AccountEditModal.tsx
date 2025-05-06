@@ -56,7 +56,7 @@ export  function AccountEditModal({ visible, onClose, onProfileUpdated }: Accoun
       setBio(data.bio || '');
       setAvatarUrl(data.avatar_url || null);
     } catch (error) {
-      console.error('Error fetching profile:', error);
+      console.log('Error fetching profile:', error);
     }
   };
   
@@ -111,7 +111,7 @@ export  function AccountEditModal({ visible, onClose, onProfileUpdated }: Accoun
         });
 
       if (uploadError) {
-        console.error('Error uploading image:', uploadError);
+        console.log('Error uploading image:', uploadError);
         Alert.alert('Upload Error', 'There was a problem uploading your profile picture.');
         setUploading(false);
         return;
@@ -125,7 +125,7 @@ export  function AccountEditModal({ visible, onClose, onProfileUpdated }: Accoun
       setAvatarUrl(urlData.publicUrl);
       setUploading(false);
     } catch (error) {
-      console.error('Error picking image:', error);
+      console.log('Error picking image:', error);
       Alert.alert('Error', 'Failed to select image. Please try again.');
       setUploading(false);
     }
@@ -163,7 +163,7 @@ export  function AccountEditModal({ visible, onClose, onProfileUpdated }: Accoun
       Alert.alert('Success', 'Your profile has been updated successfully!');
       onClose();
     } catch (error) {
-      console.error('Error updating profile:', error);
+      console.log('Error updating profile:', error);
       Alert.alert('Error', 'Failed to update profile. Please try again.');
     } finally {
       setSaving(false);

@@ -118,7 +118,7 @@ export default function ConfirmBookingScreen() {
         
         return Math.max(1, duration); // Return at least 30 minutes (0.5 hours)
       } catch (error) {
-        console.error('Error calculating duration:', error);
+        console.log('Error calculating duration:', error);
         return 1; // Default to 1 hour if calculation fails
       }
     } else {
@@ -135,7 +135,7 @@ export default function ConfirmBookingScreen() {
         
         return Math.max(1, differenceDays); // Ensure at least 1 night
       } catch (error) {
-        console.error('Error calculating boarding duration:', error);
+        console.log('Error calculating boarding duration:', error);
         return 1; // Default to 1 night if calculation fails
       }
     }
@@ -240,13 +240,13 @@ export default function ConfirmBookingScreen() {
           .single();
           
         if (error) {
-          console.error('Error fetching sitter rates:', error);
+          console.log('Error fetching sitter rates:', error);
           return;
         }
         
         setSitterRates(data);
       } catch (error) {
-        console.error('Error in fetching sitter rates:', error);
+        console.log('Error in fetching sitter rates:', error);
       } finally {
         setIsLoadingRates(false);
       }
@@ -268,7 +268,7 @@ export default function ConfirmBookingScreen() {
       });
       
       if (error) {
-        console.error('Supabase function error:', error);
+        console.log('Supabase function error:', error);
         throw error;
       }
       
@@ -347,7 +347,7 @@ export default function ConfirmBookingScreen() {
       });
       
       if (paymentError) {
-        console.error('Payment initialization error details:', paymentError);
+        console.log('Payment initialization error details:', paymentError);
         
         // Extract more helpful error message if available
         let errorMessage = 'Failed to initialize payment';
@@ -392,7 +392,7 @@ export default function ConfirmBookingScreen() {
           Alert.alert('Payment Canceled', 'You have canceled the payment process.');
         } else {
           // Other error
-          console.error('Payment confirm error:', paymentConfirmError);
+          console.log('Payment confirm error:', paymentConfirmError);
           Alert.alert('Payment Error', paymentConfirmError.message);
         }
         setIsSubmitting(false);
@@ -430,7 +430,7 @@ export default function ConfirmBookingScreen() {
       });
       
       if (chargeError) {
-        console.error('Charge payment error details:', chargeError);
+        console.log('Charge payment error details:', chargeError);
         throw new Error(`Failed to charge payment: ${chargeError.message}`);
       }
       
@@ -471,7 +471,7 @@ export default function ConfirmBookingScreen() {
     } else {
       if (!startDate || !endDate) {
         Alert.alert('Error', 'Missing required booking information. Please try again.');
-        console.error('Missing boarding parameters:', { startDate, endDate });
+        console.log('Missing boarding parameters:', { startDate, endDate });
         return;
       }
     }
@@ -500,7 +500,7 @@ export default function ConfirmBookingScreen() {
             throw new Error('Invalid date format');
           }
         } catch (dateError) {
-          console.error('Error parsing walking date:', dateError, 'Original date:', date);
+          console.log('Error parsing walking date:', dateError, 'Original date:', date);
           Alert.alert('Date Error', 'There was an issue with the date format. Please try again.');
           setIsSubmitting(false);
           return;
@@ -538,7 +538,7 @@ export default function ConfirmBookingScreen() {
                     }
                     resolve(null);
                   } catch (error: any) {
-                    console.error('Error in Use New Card flow:', error);
+                    console.log('Error in Use New Card flow:', error);
                     Alert.alert('Payment Failed', error.message || 'Failed to process payment');
                     resolve(null);
                   } finally {
@@ -644,7 +644,7 @@ export default function ConfirmBookingScreen() {
         }
       }
     } catch (error: any) {
-      console.error('Error in booking process:', error);
+      console.log('Error in booking process:', error);
       // Provide more detailed error message for debugging
       const errorMessage = error.message || 'There was a problem creating your booking. Please try again.';
       Alert.alert('Booking Failed', errorMessage);
@@ -682,20 +682,20 @@ export default function ConfirmBookingScreen() {
       })
       .then(({ data, error }) => {
         if (error) {
-          console.error('Error invoking send-notification for new booking:', error);
+          console.log('Error invoking send-notification for new booking:', error);
         } else {
           console.log('Successfully invoked send-notification for new booking. Response:', data);
         }
       })
       .catch(error => {
-        console.error('Exception invoking send-notification for new booking:', error);
+        console.log('Exception invoking send-notification for new booking:', error);
       });
       // ---> End Notification Send <---
 
       // Create a message thread with the booking ID from the payment result
       await createMessageThread(paymentIntentData.bookingId);
     } catch (error) {
-      console.error('Error in handlePaymentSuccess:', error);
+      console.log('Error in handlePaymentSuccess:', error);
       // Continue with thread creation even if notification fails
       await createMessageThread(paymentIntentData.bookingId);
     }
@@ -704,7 +704,7 @@ export default function ConfirmBookingScreen() {
   const createMessageThread = async (bookingId: string) => {
     try {
       if (!user) {
-        console.error('User not authenticated, cannot create message thread');
+        console.log('User not authenticated, cannot create message thread');
         if (!showingAlert) {
           setShowingAlert(true);
           Alert.alert(
@@ -847,7 +847,7 @@ export default function ConfirmBookingScreen() {
       }
       return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
     } catch (error) {
-      console.error('Error formatting date:', error);
+      console.log('Error formatting date:', error);
       return dateString;
     }
   };

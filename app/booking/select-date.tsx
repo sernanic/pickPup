@@ -37,7 +37,7 @@ export default function SelectDateScreen() {
       }
       return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
     } catch (error) {
-      console.error('Error formatting date:', error);
+      console.log('Error formatting date:', error);
       return dateString;
     }
   };
@@ -98,7 +98,7 @@ export default function SelectDateScreen() {
       setAvailableDates(allDates);
       updateMarkedDates(allDates);
     } catch (error) {
-      console.error('Error fetching available dates:', error);
+      console.log('Error fetching available dates:', error);
     } finally {
       setLoading(false);
     }

@@ -6,7 +6,7 @@ const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
-  console.error('Missing Supabase credentials!');
+  console.log('Missing Supabase credentials!');
   process.exit(1);
 }
 
@@ -19,7 +19,7 @@ async function createPetsBucket() {
     const { data: bucketList, error: listError } = await supabase.storage.listBuckets();
     
     if (listError) {
-      console.error('Error listing buckets:', listError);
+      console.log('Error listing buckets:', listError);
       return;
     }
     
@@ -35,7 +35,7 @@ async function createPetsBucket() {
       });
       
       if (updateError) {
-        console.error('Error updating bucket:', updateError);
+        console.log('Error updating bucket:', updateError);
       } 
     } else {
       // Create the bucket
@@ -45,7 +45,7 @@ async function createPetsBucket() {
       });
       
       if (error) {
-        console.error('Error creating bucket:', error);
+        console.log('Error creating bucket:', error);
       }
     }
     
@@ -53,11 +53,11 @@ async function createPetsBucket() {
     const { error: policyError } = await supabase.storage.from('pets').getPublicUrl('test-path');
     
     if (policyError) {
-      console.error('Error with bucket policies:', policyError);
+      console.log('Error with bucket policies:', policyError);
     }
     
   } catch (error) {
-    console.error('Unexpected error:', error);
+    console.log('Unexpected error:', error);
   }
 }
 

@@ -69,7 +69,7 @@ const LocationOnboardingScreen = () => {
       router.replace('/(tabs)');
 
     } catch (error: any) {
-      console.error('Error saving location:', error);
+      console.log('Error saving location:', error);
       Alert.alert('Error', error.message || 'Failed to save location.');
     } finally {
       setIsLoading(false);

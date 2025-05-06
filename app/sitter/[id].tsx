@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, FlatList, Dimensions, ActivityIndicator, TextInput, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, FlatList, Dimensions, ActivityIndicator, TextInput, Modal, KeyboardAvoidingView, Platform } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { supabase } from '../lib/supabase';
 // Import types from the app's type definitions
@@ -131,7 +131,7 @@ export default function SitterProfileScreen() {
         setSitter(sitterData);
         setSitterAddress(addressData || null);
       } catch (err: any) {
-        console.error('Error fetching sitter data:', err);
+        console.log('Error fetching sitter data:', err);
         setError(err.message || 'Failed to load sitter data');
       } finally {
         setLoading(false);
@@ -317,105 +317,111 @@ export default function SitterProfileScreen() {
         onRequestClose={() => setReviewModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
+          <KeyboardAvoidingView 
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={{ width: '100%' }} // Ensure KAV takes full width like modalContent did
+            keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0} // Increased offset significantly
+          >
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Write a Review</Text>
-              <TouchableOpacity onPress={() => setReviewModalVisible(false)}>
-                <X size={24} color="#1A1A1A" />
+                <TouchableOpacity onPress={() => setReviewModalVisible(false)}>
+                  <X size={24} color="#1A1A1A" />
+                </TouchableOpacity>
+              </View>
+              
+              <View style={styles.ratingSelector}>
+                <Text style={styles.ratingLabel}>Rating:</Text>
+                <View style={styles.starsContainer}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <TouchableOpacity 
+                      key={star}
+                      onPress={() => setSelectedRating(star)}
+                    >
+                      <Star 
+                        size={30} 
+                        color="#FFD700" 
+                        fill={star <= selectedRating ? "#FFD700" : "transparent"} 
+                        style={{ marginHorizontal: 5 }}
+                      />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+              
+              <TextInput
+                style={styles.reviewInput}
+                placeholder="Share your experience with this sitter..."
+                multiline
+                numberOfLines={4}
+                value={reviewText}
+                onChangeText={setReviewText}
+              />
+              
+              <TouchableOpacity 
+                style={[styles.submitButton, (!selectedRating || submittingReview) && styles.disabledButton]}
+                disabled={!selectedRating || submittingReview}
+                onPress={async () => {
+                  if (!user?.id || !selectedRating) return;
+                  
+                  try {
+                    setSubmittingReview(true);
+                    
+                    const { data, error } = await supabase
+                      .from('reviews')
+                      .insert([
+                        {
+                          sitter_id: params.id,
+                          reviewer_id: user.id,
+                          rating: selectedRating,
+                          comment: reviewText.trim()
+                        }
+                      ])
+                      .select()
+                      .single();
+                      
+                    if (error) throw error;
+                    
+                    // Get reviewer profile
+                    const { data: reviewerData } = await supabase
+                      .from('profiles')
+                      .select('name, avatar_url')
+                      .eq('id', user.id)
+                      .single();
+                    
+                    // Add the new review to the list
+                    const newReview = {
+                      ...data,
+                      reviewer_name: reviewerData?.name || 'Anonymous',
+                      reviewer_avatar: reviewerData?.avatar_url || 'https://via.placeholder.com/100'
+                    };
+                    
+                    setReviews([newReview, ...reviews]);
+                    
+                    // Update average rating
+                    const newTotal = reviews.reduce((sum, review) => sum + review.rating, 0) + selectedRating;
+                    const newAverage = parseFloat((newTotal / (reviews.length + 1)).toFixed(1));
+                    setAverageRating(newAverage);
+                    
+                    // Reset form
+                    setReviewText('');
+                    setSelectedRating(0);
+                    setReviewModalVisible(false);
+                  } catch (err: any) {
+                    console.log('Error submitting review:', err);
+                    // Use console.error instead of alert for error handling
+                    console.log('Failed to submit review. Please try again.');
+                  } finally {
+                    setSubmittingReview(false);
+                  }
+                }}
+              >
+                <Text style={styles.submitButtonText}>
+                  {submittingReview ? 'Submitting...' : 'Submit Review'}
+                </Text>
               </TouchableOpacity>
             </View>
-            
-            <View style={styles.ratingSelector}>
-              <Text style={styles.ratingLabel}>Rating:</Text>
-              <View style={styles.starsContainer}>
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <TouchableOpacity 
-                    key={star}
-                    onPress={() => setSelectedRating(star)}
-                  >
-                    <Star 
-                      size={30} 
-                      color="#FFD700" 
-                      fill={star <= selectedRating ? "#FFD700" : "transparent"} 
-                      style={{ marginHorizontal: 5 }}
-                    />
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-            
-            <TextInput
-              style={styles.reviewInput}
-              placeholder="Share your experience with this sitter..."
-              multiline
-              numberOfLines={4}
-              value={reviewText}
-              onChangeText={setReviewText}
-            />
-            
-            <TouchableOpacity 
-              style={[styles.submitButton, (!selectedRating || submittingReview) && styles.disabledButton]}
-              disabled={!selectedRating || submittingReview}
-              onPress={async () => {
-                if (!user?.id || !selectedRating) return;
-                
-                try {
-                  setSubmittingReview(true);
-                  
-                  const { data, error } = await supabase
-                    .from('reviews')
-                    .insert([
-                      {
-                        sitter_id: params.id,
-                        reviewer_id: user.id,
-                        rating: selectedRating,
-                        comment: reviewText.trim()
-                      }
-                    ])
-                    .select()
-                    .single();
-                    
-                  if (error) throw error;
-                  
-                  // Get reviewer profile
-                  const { data: reviewerData } = await supabase
-                    .from('profiles')
-                    .select('name, avatar_url')
-                    .eq('id', user.id)
-                    .single();
-                  
-                  // Add the new review to the list
-                  const newReview = {
-                    ...data,
-                    reviewer_name: reviewerData?.name || 'Anonymous',
-                    reviewer_avatar: reviewerData?.avatar_url || 'https://via.placeholder.com/100'
-                  };
-                  
-                  setReviews([newReview, ...reviews]);
-                  
-                  // Update average rating
-                  const newTotal = reviews.reduce((sum, review) => sum + review.rating, 0) + selectedRating;
-                  const newAverage = parseFloat((newTotal / (reviews.length + 1)).toFixed(1));
-                  setAverageRating(newAverage);
-                  
-                  // Reset form
-                  setReviewText('');
-                  setSelectedRating(0);
-                  setReviewModalVisible(false);
-                } catch (err: any) {
-                  console.error('Error submitting review:', err);
-                  // Use console.error instead of alert for error handling
-                  console.error('Failed to submit review. Please try again.');
-                } finally {
-                  setSubmittingReview(false);
-                }
-              }}
-            >
-              <Text style={styles.submitButtonText}>
-                {submittingReview ? 'Submitting...' : 'Submit Review'}
-              </Text>
-            </TouchableOpacity>
-          </View>
+          </KeyboardAvoidingView>
         </View>
       </Modal>
     </View>
@@ -425,10 +431,10 @@ export default function SitterProfileScreen() {
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'center', // Reverted to center
     alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.5)',
-    padding: 20,
+    padding: 20, // General padding, specific paddingTop removed
   },
   modalContent: {
     width: '100%',

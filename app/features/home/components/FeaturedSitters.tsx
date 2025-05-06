@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, FlatList, Dimensions, ActivityIndicator } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Star } from 'lucide-react-native';
@@ -19,22 +19,27 @@ export function FeaturedSitters({
   limit = 5 
 }: FeaturedSittersProps) {
   const router = useRouter();
-  const { filteredSitters, fetchSitters, isLoading, error } = useSitterStore();
+  const { sitters, fetchSitters, isLoading, error } = useSitterStore();
   
   // Ensure sitters are fetched when component mounts
   useEffect(() => {
-    if (filteredSitters.length === 0) {
+    if (sitters.length === 0) {
       fetchSitters();
     }
-  }, []);
+  }, [sitters.length]);
   
-  // Get the top-rated sitters (limited to specified count)
-  const featuredSitters = filteredSitters
-    .slice(0, limit)
-    .map(sitter => ({
-      ...sitter,
-      coverImage: sitter.background_url || 'https://images.unsplash.com/photo-1568640347023-a616a30bc3bd?q=80&w=400&auto=format&fit=crop'
-    }));
+  // Get the top-rated sitters (limited to specified count) from the master list
+  const featuredSittersToDisplay = useMemo(() => {
+    if (!sitters) return [];
+    return sitters
+      .slice() // Create a copy before sorting
+      .sort((a, b) => (b.rating || 0) - (a.rating || 0)) // Sort by rating descending (ensure rating exists)
+      .slice(0, limit) // Then take the top N
+      .map(sitter => ({
+        ...sitter,
+        coverImage: sitter.background_url || 'https://images.unsplash.com/photo-1568640347023-a616a30bc3bd?q=80&w=400&auto=format&fit=crop'
+      }));
+  }, [sitters, limit]);
   
   const handleSitterPress = (sitter: any) => {
     if (onSitterPress) {
@@ -63,9 +68,9 @@ export function FeaturedSitters({
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#63C7B8" />
           </View>
-        ) : featuredSitters.length > 0 ? (
+        ) : featuredSittersToDisplay.length > 0 ? (
           <FlatList
-            data={featuredSitters}
+            data={featuredSittersToDisplay}
             horizontal
             showsHorizontalScrollIndicator={false}
             keyExtractor={(item) => item.id}

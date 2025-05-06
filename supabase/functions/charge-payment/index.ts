@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
         .eq('id', booking_id)
       
     } else {
-      console.error(`Unknown booking type: ${booking_type}`);
+      console.log(`Unknown booking type: ${booking_type}`);
     }
 
     return new Response(
@@ -108,7 +108,7 @@ Deno.serve(async (req) => {
       }
     )
   } catch (error) {
-    console.error('Error in charge-payment:', error)
+    console.log('Error in charge-payment:', error)
     return new Response(
       JSON.stringify({ 
         error: error.message,

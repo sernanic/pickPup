@@ -18,7 +18,7 @@ export const fetchSitterInfo = async (sitterId: string): Promise<SitterInfo | nu
     
     return null;
   } catch (err) {
-    console.error('Error fetching sitter info:', err);
+    console.log('Error fetching sitter info:', err);
     throw err;
   }
 };
@@ -118,7 +118,7 @@ export const fetchAvailabilityData = async (sitterId: string, maxBoardingCapacit
       unavailableDates: combinedUnavailable
     };
   } catch (err) {
-    console.error('Error fetching availability data:', err);
+    console.log('Error fetching availability data:', err);
     throw err;
   }
 };

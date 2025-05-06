@@ -103,7 +103,7 @@ export const useSitterStore = create<SitterState>((set, get) => ({
       set({ 
         error: "User not authenticated", 
         isLoading: false,
-        sitters: [],
+        sitters: [], 
         filteredSitters: [] 
       });
       return;
@@ -416,20 +416,22 @@ export const useSitterStore = create<SitterState>((set, get) => ({
         return a.distance - b.distance;
       });
       
-      // Apply the user's max distance filter
-      const { maxDistance } = user;
-      const filteredByDistance = maxDistance 
-        ? sortedSitters.filter(sitter => sitter.distance <= maxDistance)
+      // `sitters` state will hold the master sorted list, NOT pre-filtered by user's profile maxDistance.
+      // `filteredSitters` will be initialized here, filtered by user's profile maxDistance for the SearchScreen.
+      const userProfileMaxDistance = user ? user.maxDistance : undefined;
+
+      const initialFilteredSittersForSearch = userProfileMaxDistance
+        ? sortedSitters.filter(sitter => sitter.distance <= userProfileMaxDistance)
         : sortedSitters;
       
       set({ 
-        sitters: sortedSitters,
-        filteredSitters: filteredByDistance,
+        sitters: sortedSitters, // Master list, only sorted
+        filteredSitters: initialFilteredSittersForSearch, // Initial list for search screen
         isLoading: false,
         lastFetchTime: now
       });
     } catch (err: any) {
-      console.error('Error fetching sitters:', err);
+      console.log('Error fetching sitters:', err);
       set({ 
         error: err.message, 
         isLoading: false 
@@ -438,18 +440,23 @@ export const useSitterStore = create<SitterState>((set, get) => ({
   },
   
   filterSitters: (filters: SitterFilters) => {
-    // Get sitters that are already filtered by the user's max distance preference
-    const { sitters, filteredSitters } = get();
+    const { sitters } = get(); // Start with the master, sorted list
     const { user } = useAuthStore.getState();
     
-    // Use the filteredSitters (already filtered by user's max distance setting) as the base
-    const sittersToFilter = filteredSitters.length > 0 ? filteredSitters : sitters;
-    
-    // Get the effective max distance (from filters, or user preference, or unlimited)
-    const effectiveMaxDistance = filters.maxDistance || (user ? user.maxDistance : undefined);
-    
-    // Apply filtering logic
-    const filtered = sittersToFilter.filter(sitter => {
+    // Determine the max distance to use for filtering:
+    // 1. If filters.maxDistance is provided (from Search UI), use that.
+    // 2. Else, if user has a maxDistance preference in their profile, use that.
+    // 3. Otherwise, no distance filtering.
+    const distanceToApply = filters.maxDistance !== undefined 
+                            ? filters.maxDistance 
+                            : (user?.maxDistance);
+
+    const newlyFiltered = sitters.filter(sitter => {
+      // Apply distance filter first
+      if (distanceToApply !== undefined && sitter.distance > distanceToApply) {
+        return false;
+      }
+
       // Filter by search query
       if (filters.searchQuery && !sitter.name.toLowerCase().includes(filters.searchQuery.toLowerCase())) {
         return false;
@@ -462,7 +469,7 @@ export const useSitterStore = create<SitterState>((set, get) => ({
           if (serviceType === 'Walking') return sitter.walkingRate && sitter.walkingRate > 0;
           if (serviceType === 'Sitting') return sitter.sittingRate && sitter.sittingRate > 0;
           if (serviceType === 'Daycare') return sitter.daycareRate && sitter.daycareRate > 0;
-          if (serviceType === 'Training') return sitter.services.includes('Training');
+          if (serviceType === 'Training') return sitter.services?.includes('Training'); // Check if services array exists
           return false;
         });
         
@@ -481,18 +488,13 @@ export const useSitterStore = create<SitterState>((set, get) => ({
         if (!priceRangeMatch) return false;
       }
 
-      // Apply additional distance filter if provided in the filters
-      if (filters.maxDistance !== undefined && sitter.distance > filters.maxDistance) {
-        return false;
-      }
+      // The filters.maxDistance is handled by distanceToApply at the beginning
 
       return true;
     });
     
-    set({ filteredSitters: filtered });
-    
-    // Return the filtered sitters for convenience in components
-    return filtered;
+    set({ filteredSitters: newlyFiltered });
+    // No need to return the list, components will react to store changes
   },
   
   getSitterById: (id: string) => {

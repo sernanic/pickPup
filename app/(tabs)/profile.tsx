@@ -64,7 +64,7 @@ export default function ProfileScreen() {
         // Set initial notifications preference from profile
         setNotificationsEnabled(data.notifications_enabled || false);
       } catch (error) {
-        console.error('Error loading profile:', error);
+        console.log('Error loading profile:', error);
       } finally {
         setIsLoading(false);
       }
@@ -122,7 +122,7 @@ export default function ProfileScreen() {
         });
 
       if (uploadError) {
-        console.error('Error uploading image:', uploadError);
+        console.log('Error uploading image:', uploadError);
         Alert.alert('Upload Error', 'There was a problem uploading your profile picture.');
         setUploading(false);
         return;
@@ -140,7 +140,7 @@ export default function ProfileScreen() {
         .eq('id', user.id);
 
       if (updateError) {
-        console.error('Error updating profile:', updateError);
+        console.log('Error updating profile:', updateError);
         Alert.alert('Update Error', 'There was a problem updating your profile.');
         setUploading(false);
         return;
@@ -150,7 +150,7 @@ export default function ProfileScreen() {
       setProfile(prev => prev ? { ...prev, avatar_url: urlData.publicUrl } : null);
       Alert.alert('Success', 'Your profile picture has been updated!');
     } catch (error) {
-      console.error('Error in profile picture change:', error);
+      console.log('Error in profile picture change:', error);
       Alert.alert('Error', 'An unexpected error occurred. Please try again.');
     } finally {
       setUploading(false);
@@ -159,7 +159,7 @@ export default function ProfileScreen() {
 
   const handleUpdateMaxDistance = async () => {
     if (!user) {
-      console.error('No user found, cannot update max distance');
+      console.log('No user found, cannot update max distance');
       Alert.alert('Error', 'You must be logged in to update preferences.');
       return;
     }
@@ -187,7 +187,7 @@ export default function ProfileScreen() {
       setShowMaxDistanceModal(false);
       Alert.alert('Success', 'Your search radius has been updated.');
     } catch (error) {
-      console.error('Error updating max distance:', error);
+      console.log('Error updating max distance:', error);
       Alert.alert('Error', 'Failed to update your search radius. Please try again.');
     } finally {
       setUpdatingDistance(false);
@@ -238,7 +238,7 @@ export default function ProfileScreen() {
           'You will no longer receive notifications from this app.'
       );
     } catch (error) {
-      console.error('Error updating notification settings:', error);
+      console.log('Error updating notification settings:', error);
       Alert.alert('Error', 'Failed to update notification settings. Please try again.');
     } finally {
       setUpdatingNotifications(false);
@@ -261,7 +261,7 @@ export default function ProfileScreen() {
         if (error) throw error;
         setProfile(data);
       } catch (error) {
-        console.error('Error loading profile:', error);
+        console.log('Error loading profile:', error);
       } finally {
         setIsLoading(false);
       }

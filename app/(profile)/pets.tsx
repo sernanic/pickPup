@@ -48,7 +48,7 @@ export default function PetsScreen() {
       if (error) throw error;
       setProfile(data);
     } catch (error) {
-      console.error('Error loading profile:', error);
+      console.log('Error loading profile:', error);
     } finally {
       setIsLoading(false);
     }
@@ -144,7 +144,7 @@ export default function PetsScreen() {
           updates.image_url = urlData.publicUrl;
           
         } catch (uploadError: any) {
-          console.error('Error uploading image:', uploadError);
+          console.log('Error uploading image:', uploadError);
           Alert.alert('Upload Error', 'There was a problem uploading your pet image, but we will still update the other information.');
         } finally {
           setIsUploading(false);
@@ -167,7 +167,7 @@ export default function PetsScreen() {
       Alert.alert('Success', 'Pet information updated successfully!');
       
     } catch (error: any) {
-      console.error('Error updating pet:', error);
+      console.log('Error updating pet:', error);
       Alert.alert('Error', error.message || 'Failed to update pet information. Please try again.');
     } finally {
       setIsSaving(false);
@@ -209,7 +209,7 @@ export default function PetsScreen() {
       setPetImage(asset.uri);
       
     } catch (error) {
-      console.error('Error picking image:', error);
+      console.log('Error picking image:', error);
       Alert.alert('Error', 'Failed to pick image. Please try again.');
     }
   };
@@ -298,7 +298,7 @@ export default function PetsScreen() {
           newPet.image_url = urlData.publicUrl;
           
         } catch (uploadError: any) {
-          console.error('Error uploading image:', uploadError);
+          console.log('Error uploading image:', uploadError);
           Alert.alert('Upload Error', 'There was a problem uploading your pet image, but we will still add the pet without an image.');
         } finally {
           setIsUploading(false);
@@ -320,7 +320,7 @@ export default function PetsScreen() {
       Alert.alert('Success', 'Your pet has been added successfully!');
       
     } catch (error: any) {
-      console.error('Error adding pet:', error);
+      console.log('Error adding pet:', error);
       Alert.alert('Error', error.message || 'Failed to add pet. Please try again.');
     } finally {
       setIsSaving(false);

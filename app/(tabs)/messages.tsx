@@ -104,7 +104,7 @@ export default function MessagesScreen() {
             .single();
           
           if (profileError) {
-            console.error('Error fetching profile:', profileError);
+            console.log('Error fetching profile:', profileError);
             return {
               ...thread,
               profile: { id: profileId, name: 'Unknown', avatar_url: null }
@@ -120,7 +120,7 @@ export default function MessagesScreen() {
             .neq('sender_id', user.id);
           
           if (countError) {
-            console.error('Error fetching unread count:', countError);
+            console.log('Error fetching unread count:', countError);
           }
           
           return {
@@ -132,7 +132,7 @@ export default function MessagesScreen() {
         
         setThreads(processedThreads);
       } catch (error) {
-        console.error('Error fetching threads:', error);
+        console.log('Error fetching threads:', error);
       } finally {
         setLoading(false);
       }

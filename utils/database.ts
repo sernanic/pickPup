@@ -31,6 +31,6 @@ export async function inspectDatabase() {
     if (policiesError) throw policiesError;
 
   } catch (error) {
-    console.error('Error inspecting database:', error);
+    console.log('Error inspecting database:', error);
   }
 } 
