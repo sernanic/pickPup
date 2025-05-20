@@ -7,6 +7,13 @@ import { useRouter } from 'expo-router';
 
 const { width } = Dimensions.get('window');
 
+const truncateName = (name: string, maxLength: number): string => {
+  if (name.length > maxLength) {
+    return name.substring(0, maxLength) + "...";
+  }
+  return name;
+};
+
 interface FeaturedSittersProps {
   onSitterPress?: (sitter: any) => void;
   animationDelay?: number;
@@ -93,7 +100,7 @@ export function FeaturedSitters({
                   />
                   
                   <View style={styles.featuredInfo}>
-                    <Text style={styles.featuredSitterName}>{item.name} </Text>
+                    <Text style={styles.featuredSitterName}>{truncateName(item.name, 12)} </Text>
                     
                     <View style={styles.ratingContainer}>
                       {item.reviews > 0 ? (
