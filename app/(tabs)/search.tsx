@@ -152,7 +152,7 @@ export default function SearchScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <Text style={styles.title}>Find a Sitter</Text>
+        <Text style={styles.title}>Find a Caregiver</Text>
       </View>
 
       <View style={styles.searchContainer}>

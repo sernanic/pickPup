@@ -61,6 +61,7 @@ module.exports = {
         locationAlwaysAndWhenInUsePermission: "PikPup needs your location when the app is in the background to update sitter availability.",
         locationAlwaysPermission: "PikPup needs your location even when the app is not on screen."
       }
-    ]
+    ],
+    "expo-font"
   ]
 };

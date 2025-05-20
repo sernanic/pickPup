@@ -142,42 +142,41 @@ export default function FavoritesScreen() {
                 style={styles.favoriteCard}
                 onPress={() => navigateToSitterProfile(item.sitterId)}
               >
-                {item.sitter.image && (
+                {item.sitter.image ? (
                   <Image 
                     source={{ uri: item.sitter.image }} 
                     style={styles.sitterImage} 
                   />
-                )}
+                ) : null}
                 <View style={styles.sitterInfo}>
-                  <Text style={styles.sitterName}>{item.sitter.name}</Text>
+                  <Text style={styles.sitterName}>{String(item.sitter.name || '')}</Text>
                   
-                  {item.sitter.rating && (
+                  {item.sitter.rating ? (
                     <View style={styles.ratingContainer}>
                       <Star size={16} color="#FFD700" fill="#FFD700" />
-                      <Text style={styles.ratingText}>{item.sitter.rating}</Text>
-                      {item.sitter.reviews && (
-                        <Text style={styles.reviewsText}>({item.sitter.reviews} reviews)</Text>
-                      )}
+                      <Text style={styles.ratingText}>{String(item.sitter.rating ?? '')}</Text>
+                      {typeof item.sitter.reviews === 'number' ? (
+                        <Text style={styles.reviewsText}>{`(${item.sitter.reviews} reviews)`}</Text>
+                      ) : null}
                     </View>
-                  )}
+                  ) : null}
                   
-                  {item.sitter.distance && (
+                  {item.sitter.distance ? (
                     <View style={styles.locationContainer}>
                       <MapPin size={14} color="#8E8E93" />
                       <Text style={styles.locationText}>
-                        {item.sitter.distance} miles away
+                        {`${item.sitter.distance || 0} miles away`}
                       </Text>
                     </View>
-                  )}
+                  ) : null}
                   
-                  {item.sitter.price && (
+                  {item.sitter.price ? (
                     <View style={styles.priceContainer}>
                       <Text style={styles.priceText}>
-                        ${item.sitter.price}
-                        <Text style={styles.priceUnit}>{item.sitter.priceLabel || '/night'}</Text>
+                        {`$${item.sitter.price || 0}${item.sitter.priceLabel || '/night'}`}
                       </Text>
                     </View>
-                  )}
+                  ) : null}
                 </View>
                 <TouchableOpacity 
                   style={styles.favoriteButton}
@@ -298,11 +297,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-SemiBold',
     fontSize: 16,
     color: '#63C7B8',
-  },
-  priceUnit: {
-    fontFamily: 'Poppins-Regular',
-    fontSize: 12,
-    color: '#8E8E93',
   },
   favoriteButton: {
     padding: 8,

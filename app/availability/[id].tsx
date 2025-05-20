@@ -235,7 +235,7 @@ export default function AvailabilityScreen() {
       if (isNaN(date.getTime())) {
         return dateString; // Return as is if invalid
       }
-      return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
     } catch (error) {
       console.log('Error formatting date:', error);
       return dateString;

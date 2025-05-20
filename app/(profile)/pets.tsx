@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, ScrollView, Image, ActivityIndicator, Alert, Switch } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, ScrollView, Image, ActivityIndicator, Alert, Switch, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { DogsList } from '../features/profile/components';
@@ -397,113 +397,123 @@ export default function PetsScreen() {
                 <X size={24} color="#333" />
               </TouchableOpacity>
             </View>
-            
-            <ScrollView style={styles.formContainer}>
-              {/* Image Picker */}
-              <TouchableOpacity 
-                style={styles.imagePicker} 
-                onPress={pickImage}
+            <KeyboardAvoidingView 
+              style={{ flex: 1 }}
+              behavior={Platform.OS === "ios" ? "padding" : "height"} 
+              keyboardVerticalOffset={Platform.OS === "ios" ? 60 : 0}
+            >
+              <ScrollView 
+                style={{ flex: 1 }}
+                contentContainerStyle={styles.formContainer} 
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
               >
-                {petImage ? (
-                  <Image 
-                    source={{ uri: petImage }} 
-                    style={styles.petImagePreview} 
-                  />
-                ) : (
-                  <View style={styles.placeholderContainer}>
-                    <Camera size={28} color="#999" />
-                    <Text style={styles.placeholderText}>Tap to change photo</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-              
-              <Text style={styles.inputLabel}>Name*</Text>
-              <TextInput
-                style={styles.input}
-                value={petName}
-                onChangeText={setPetName}
-                placeholder="Pet's name"
-                maxLength={50}
-              />
-              
-              <Text style={styles.inputLabel}>Breed</Text>
-              <TextInput
-                style={styles.input}
-                value={petBreed}
-                onChangeText={setPetBreed}
-                placeholder="Breed (optional)"
-                maxLength={50}
-              />
-              
-              <Text style={styles.inputLabel}>Age (years)</Text>
-              <TextInput
-                style={styles.input}
-                value={petAge}
-                onChangeText={setPetAge}
-                placeholder="Age in years (optional)"
-                keyboardType="numeric"
-                maxLength={2}
-              />
-              
-              <Text style={styles.inputLabel}>Weight (lbs)</Text>
-              <TextInput
-                style={styles.input}
-                value={petWeight}
-                onChangeText={setPetWeight}
-                placeholder="Weight in pounds (optional)"
-                keyboardType="numeric"
-                maxLength={5}
-              />
-              
-              <Text style={styles.inputLabel}>Gender</Text>
-              <View style={styles.genderContainer}>
+                {/* Image Picker */}
                 <TouchableOpacity 
-                  style={[styles.genderButton, petGender === 'male' && styles.genderButtonActive]}
-                  onPress={() => setPetGender('male')}
+                  style={styles.imagePicker} 
+                  onPress={pickImage}
                 >
-                  <Text style={[styles.genderButtonText, petGender === 'male' && styles.genderButtonTextActive]}>Male</Text>
+                  {petImage ? (
+                    <Image 
+                      source={{ uri: petImage }} 
+                      style={styles.petImagePreview} 
+                    />
+                  ) : (
+                    <View style={styles.placeholderContainer}>
+                      <Camera size={28} color="#999" />
+                      <Text style={styles.placeholderText}>Tap to change photo</Text>
+                    </View>
+                  )}
                 </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.genderButton, petGender === 'female' && styles.genderButtonActive]}
-                  onPress={() => setPetGender('female')}
-                >
-                  <Text style={[styles.genderButtonText, petGender === 'female' && styles.genderButtonTextActive]}>Female</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.genderButton, petGender === 'unknown' && styles.genderButtonActive]}
-                  onPress={() => setPetGender('unknown')}
-                >
-                  <Text style={[styles.genderButtonText, petGender === 'unknown' && styles.genderButtonTextActive]}>Unknown</Text>
-                </TouchableOpacity>
-              </View>
-              
-              <View style={styles.switchRow}>
-                <Text style={styles.inputLabel}>Neutered/Spayed</Text>
-                <Switch
-                  value={isNeutered}
-                  onValueChange={setIsNeutered}
-                  trackColor={{ false: '#D1D1D6', true: '#A4E5D9' }}
-                  thumbColor={isNeutered ? '#63C7B8' : '#F4F4F5'}
+                
+                <Text style={styles.inputLabel}>Name*</Text>
+                <TextInput
+                  style={styles.input}
+                  value={petName}
+                  onChangeText={setPetName}
+                  placeholder="Pet's name"
+                  maxLength={50}
                 />
-              </View>
-              
-              <TouchableOpacity 
-                style={[styles.saveButton, (isSaving || isUploading) && styles.saveButtonDisabled]}
-                onPress={savePetChanges}
-                disabled={isSaving || isUploading || !petName.trim()}
-              >
-                {isSaving || isUploading ? (
-                  <View style={styles.loadingButtonContent}>
-                    <ActivityIndicator color="#FFFFFF" size="small" />
-                    <Text style={[styles.saveButtonText, {marginLeft: 8}]}>
-                      {isUploading ? 'Uploading...' : 'Saving...'}
-                    </Text>
-                  </View>
-                ) : (
-                  <Text style={styles.saveButtonText}>Save Changes</Text>
-                )}
-              </TouchableOpacity>
-            </ScrollView>
+                
+                <Text style={styles.inputLabel}>Breed</Text>
+                <TextInput
+                  style={styles.input}
+                  value={petBreed}
+                  onChangeText={setPetBreed}
+                  placeholder="Breed (optional)"
+                  maxLength={50}
+                />
+                
+                <Text style={styles.inputLabel}>Age (years)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={petAge}
+                  onChangeText={setPetAge}
+                  placeholder="Age in years (optional)"
+                  keyboardType="numeric"
+                  maxLength={2}
+                />
+                
+                <Text style={styles.inputLabel}>Weight (lbs)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={petWeight}
+                  onChangeText={setPetWeight}
+                  placeholder="Weight in pounds (optional)"
+                  keyboardType="numeric"
+                  maxLength={5}
+                />
+                
+                <Text style={styles.inputLabel}>Gender</Text>
+                <View style={styles.genderContainer}>
+                  <TouchableOpacity 
+                    style={[styles.genderButton, petGender === 'male' && styles.genderButtonActive]}
+                    onPress={() => setPetGender('male')}
+                  >
+                    <Text style={[styles.genderButtonText, petGender === 'male' && styles.genderButtonTextActive]}>Male</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.genderButton, petGender === 'female' && styles.genderButtonActive]}
+                    onPress={() => setPetGender('female')}
+                  >
+                    <Text style={[styles.genderButtonText, petGender === 'female' && styles.genderButtonTextActive]}>Female</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.genderButton, petGender === 'unknown' && styles.genderButtonActive]}
+                    onPress={() => setPetGender('unknown')}
+                  >
+                    <Text style={[styles.genderButtonText, petGender === 'unknown' && styles.genderButtonTextActive]}>Unknown</Text>
+                  </TouchableOpacity>
+                </View>
+                
+                <View style={styles.switchRow}>
+                  <Text style={styles.inputLabel}>Neutered/Spayed</Text>
+                  <Switch
+                    value={isNeutered}
+                    onValueChange={setIsNeutered}
+                    trackColor={{ false: '#D1D1D6', true: '#A4E5D9' }}
+                    thumbColor={isNeutered ? '#63C7B8' : '#F4F4F5'}
+                  />
+                </View>
+                
+                <TouchableOpacity 
+                  style={[styles.saveButton, (isSaving || isUploading) && styles.saveButtonDisabled]}
+                  onPress={savePetChanges}
+                  disabled={isSaving || isUploading || !petName.trim()}
+                >
+                  {isSaving || isUploading ? (
+                    <View style={styles.loadingButtonContent}>
+                      <ActivityIndicator color="#FFFFFF" size="small" />
+                      <Text style={[styles.saveButtonText, {marginLeft: 8}]}>
+                        {isUploading ? 'Uploading...' : 'Saving...'}
+                      </Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.saveButtonText}>Save Changes</Text>
+                  )}
+                </TouchableOpacity>
+              </ScrollView>
+            </KeyboardAvoidingView>
           </View>
         </View>
       </Modal>
@@ -526,113 +536,123 @@ export default function PetsScreen() {
                 <X size={24} color="#333" />
               </TouchableOpacity>
             </View>
-            
-            <ScrollView style={styles.formContainer}>
-              {/* Image Picker */}
-              <TouchableOpacity 
-                style={styles.imagePicker} 
-                onPress={pickImage}
+            <KeyboardAvoidingView 
+              style={{ flex: 1 }}
+              behavior={Platform.OS === "ios" ? "padding" : "height"} 
+              keyboardVerticalOffset={Platform.OS === "ios" ? 60 : 0}
+            >
+              <ScrollView 
+                style={{ flex: 1 }}
+                contentContainerStyle={styles.formContainer} 
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
               >
-                {petImage ? (
-                  <Image 
-                    source={{ uri: petImage }} 
-                    style={styles.petImagePreview} 
-                  />
-                ) : (
-                  <View style={styles.placeholderContainer}>
-                    <Camera size={28} color="#999" />
-                    <Text style={styles.placeholderText}>Tap to add photo</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-              
-              <Text style={styles.inputLabel}>Name*</Text>
-              <TextInput
-                style={styles.input}
-                value={petName}
-                onChangeText={setPetName}
-                placeholder="Pet's name"
-                maxLength={50}
-              />
-              
-              <Text style={styles.inputLabel}>Breed</Text>
-              <TextInput
-                style={styles.input}
-                value={petBreed}
-                onChangeText={setPetBreed}
-                placeholder="Breed (optional)"
-                maxLength={50}
-              />
-              
-              <Text style={styles.inputLabel}>Age (years)</Text>
-              <TextInput
-                style={styles.input}
-                value={petAge}
-                onChangeText={setPetAge}
-                placeholder="Age in years (optional)"
-                keyboardType="numeric"
-                maxLength={2}
-              />
-              
-              <Text style={styles.inputLabel}>Weight (lbs)</Text>
-              <TextInput
-                style={styles.input}
-                value={petWeight}
-                onChangeText={setPetWeight}
-                placeholder="Weight in pounds (optional)"
-                keyboardType="numeric"
-                maxLength={5}
-              />
-              
-              <Text style={styles.inputLabel}>Gender</Text>
-              <View style={styles.genderContainer}>
+                {/* Image Picker */}
                 <TouchableOpacity 
-                  style={[styles.genderButton, petGender === 'male' && styles.genderButtonActive]}
-                  onPress={() => setPetGender('male')}
+                  style={styles.imagePicker} 
+                  onPress={pickImage}
                 >
-                  <Text style={[styles.genderButtonText, petGender === 'male' && styles.genderButtonTextActive]}>Male</Text>
+                  {petImage ? (
+                    <Image 
+                      source={{ uri: petImage }} 
+                      style={styles.petImagePreview} 
+                    />
+                  ) : (
+                    <View style={styles.placeholderContainer}>
+                      <Camera size={28} color="#999" />
+                      <Text style={styles.placeholderText}>Tap to add photo</Text>
+                    </View>
+                  )}
                 </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.genderButton, petGender === 'female' && styles.genderButtonActive]}
-                  onPress={() => setPetGender('female')}
-                >
-                  <Text style={[styles.genderButtonText, petGender === 'female' && styles.genderButtonTextActive]}>Female</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.genderButton, petGender === 'unknown' && styles.genderButtonActive]}
-                  onPress={() => setPetGender('unknown')}
-                >
-                  <Text style={[styles.genderButtonText, petGender === 'unknown' && styles.genderButtonTextActive]}>Unknown</Text>
-                </TouchableOpacity>
-              </View>
-              
-              <View style={styles.switchRow}>
-                <Text style={styles.inputLabel}>Neutered/Spayed</Text>
-                <Switch
-                  value={isNeutered}
-                  onValueChange={setIsNeutered}
-                  trackColor={{ false: '#D1D1D6', true: '#A4E5D9' }}
-                  thumbColor={isNeutered ? '#63C7B8' : '#F4F4F5'}
+                
+                <Text style={styles.inputLabel}>Name*</Text>
+                <TextInput
+                  style={styles.input}
+                  value={petName}
+                  onChangeText={setPetName}
+                  placeholder="Pet's name"
+                  maxLength={50}
                 />
-              </View>
-              
-              <TouchableOpacity 
-                style={[styles.saveButton, (isSaving || isUploading) && styles.saveButtonDisabled]}
-                onPress={addNewPet}
-                disabled={isSaving || isUploading || !petName.trim()}
-              >
-                {isSaving || isUploading ? (
-                  <View style={styles.loadingButtonContent}>
-                    <ActivityIndicator color="#FFFFFF" size="small" />
-                    <Text style={[styles.saveButtonText, {marginLeft: 8}]}>
-                      {isUploading ? 'Uploading...' : 'Saving...'}
-                    </Text>
-                  </View>
-                ) : (
-                  <Text style={styles.saveButtonText}>Add Pet</Text>
-                )}
-              </TouchableOpacity>
-            </ScrollView>
+                
+                <Text style={styles.inputLabel}>Breed</Text>
+                <TextInput
+                  style={styles.input}
+                  value={petBreed}
+                  onChangeText={setPetBreed}
+                  placeholder="Breed (optional)"
+                  maxLength={50}
+                />
+                
+                <Text style={styles.inputLabel}>Age (years)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={petAge}
+                  onChangeText={setPetAge}
+                  placeholder="Age in years (optional)"
+                  keyboardType="numeric"
+                  maxLength={2}
+                />
+                
+                <Text style={styles.inputLabel}>Weight (lbs)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={petWeight}
+                  onChangeText={setPetWeight}
+                  placeholder="Weight in pounds (optional)"
+                  keyboardType="numeric"
+                  maxLength={5}
+                />
+                
+                <Text style={styles.inputLabel}>Gender</Text>
+                <View style={styles.genderContainer}>
+                  <TouchableOpacity 
+                    style={[styles.genderButton, petGender === 'male' && styles.genderButtonActive]}
+                    onPress={() => setPetGender('male')}
+                  >
+                    <Text style={[styles.genderButtonText, petGender === 'male' && styles.genderButtonTextActive]}>Male</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.genderButton, petGender === 'female' && styles.genderButtonActive]}
+                    onPress={() => setPetGender('female')}
+                  >
+                    <Text style={[styles.genderButtonText, petGender === 'female' && styles.genderButtonTextActive]}>Female</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.genderButton, petGender === 'unknown' && styles.genderButtonActive]}
+                    onPress={() => setPetGender('unknown')}
+                  >
+                    <Text style={[styles.genderButtonText, petGender === 'unknown' && styles.genderButtonTextActive]}>Unknown</Text>
+                  </TouchableOpacity>
+                </View>
+                
+                <View style={styles.switchRow}>
+                  <Text style={styles.inputLabel}>Neutered/Spayed</Text>
+                  <Switch
+                    value={isNeutered}
+                    onValueChange={setIsNeutered}
+                    trackColor={{ false: '#D1D1D6', true: '#A4E5D9' }}
+                    thumbColor={isNeutered ? '#63C7B8' : '#F4F4F5'}
+                  />
+                </View>
+                
+                <TouchableOpacity 
+                  style={[styles.saveButton, (isSaving || isUploading) && styles.saveButtonDisabled]}
+                  onPress={addNewPet}
+                  disabled={isSaving || isUploading || !petName.trim()}
+                >
+                  {isSaving || isUploading ? (
+                    <View style={styles.loadingButtonContent}>
+                      <ActivityIndicator color="#FFFFFF" size="small" />
+                      <Text style={[styles.saveButtonText, {marginLeft: 8}]}>
+                        {isUploading ? 'Uploading...' : 'Saving...'}
+                      </Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.saveButtonText}>Add Pet</Text>
+                  )}
+                </TouchableOpacity>
+              </ScrollView>
+            </KeyboardAvoidingView>
           </View>
         </View>
       </Modal>
@@ -697,6 +717,8 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: '90%',
+    flexGrow: 1, 
+    flexShrink: 1, 
   },
   modalHeader: {
     flexDirection: 'row',

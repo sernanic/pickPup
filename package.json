@@ -34,23 +34,23 @@
     "date-fns": "^4.1.0",
     "dotenv": "^16.3.1",
     "expo": "~52.0.46",
-    "expo-blur": "^14.0.3",
-    "expo-constants": "^17.0.5",
+    "expo-blur": "~14.0.3",
+    "expo-constants": "~17.0.8",
     "expo-device": "~7.0.3",
-    "expo-font": "^13.0.3",
-    "expo-haptics": "^14.0.1",
+    "expo-font": "~13.0.4",
+    "expo-haptics": "~14.0.1",
     "expo-image": "~2.0.7",
     "expo-image-picker": "~16.0.6",
-    "expo-linear-gradient": "^14.0.2",
-    "expo-linking": "^7.0.5",
+    "expo-linear-gradient": "~14.0.2",
+    "expo-linking": "~7.0.5",
     "expo-location": "~18.0.10",
     "expo-notifications": "~0.29.14",
-    "expo-router": "~4.0.20",
+    "expo-router": "~4.0.21",
     "expo-splash-screen": "~0.29.24",
-    "expo-status-bar": "^2.0.1",
+    "expo-status-bar": "~2.0.1",
     "expo-symbols": "^0.2.2",
     "expo-system-ui": "~4.0.9",
-    "expo-web-browser": "^14.0.2",
+    "expo-web-browser": "~14.0.2",
     "figlet": "^1.7.0",
     "gradient-string": "^2.0.2",
     "lucide-react-native": "^0.475.0",
@@ -66,7 +66,7 @@
     "react-native-get-random-values": "^1.11.0",
     "react-native-google-places-autocomplete": "^2.5.7",
     "react-native-modal-datetime-picker": "^18.0.0",
-    "react-native-reanimated": "^3.16.7",
+    "react-native-reanimated": "~3.16.1",
     "react-native-safe-area-context": "4.12.0",
     "react-native-screens": "~4.4.0",
     "react-native-svg": "15.8.0",
@@ -86,5 +86,11 @@
     "supabase": "^2.19.7",
     "typescript": "^5.3.3"
   },
-  "type": "module"
+  "type": "module",
+  "overrides": {
+    "react-native-windows": {
+      "react": "$react",
+      "@types/react": "$@types/react"
+    }
+  }
 }

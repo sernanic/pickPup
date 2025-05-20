@@ -255,7 +255,7 @@ export default function MessagesScreen() {
             When you book a sitter or receive a message, you'll see your conversations here.
           </Text>
           <TouchableOpacity style={styles.findSitterButton}>
-            <Text style={styles.findSitterButtonText}>Find a Sitter</Text>
+            <Text style={styles.findSitterButtonText}>Find a Caregiver</Text>
           </TouchableOpacity>
         </View>
       )}

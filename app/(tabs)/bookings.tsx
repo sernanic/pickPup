@@ -456,7 +456,7 @@ export default function BookingsScreen() {
           {activeTab === 'upcoming' && !loading && (
             <Link href="/" asChild>
               <TouchableOpacity style={styles.findSitterButton}>
-                <Text style={styles.findSitterButtonText}>Find a Sitter</Text>
+                <Text style={styles.findSitterButtonText}>Find a Caregiver</Text>
               </TouchableOpacity>
             </Link>
           )}
