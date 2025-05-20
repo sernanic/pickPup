@@ -51,6 +51,14 @@ export default function SitterProfileScreen() {
   const [selectedRating, setSelectedRating] = useState(0);
   const [submittingReview, setSubmittingReview] = useState(false);
   const { user } = useAuthStore();
+
+  // Helper function to truncate name
+  const truncateName = (name: string, maxLength: number, ellipsis: string) => {
+    if (name.length > maxLength) {
+      return name.substring(0, maxLength) + ellipsis;
+    }
+    return name;
+  };
   
   useEffect(() => {
     const fetchSitterData = async () => {
@@ -189,7 +197,9 @@ export default function SitterProfileScreen() {
           />
           <View style={styles.profileInfo}>
             <View style={styles.nameRow}>
-              <Text style={styles.name}>{sitter?.name || 'Loading...'}</Text>
+              <Text style={styles.name}>
+                {sitter?.name ? truncateName(sitter.name, 12, "...") : 'Loading...'}
+              </Text>
               <View style={styles.verifiedBadge}>
                 <Shield size={14} color="#0288D1" />
                 <Text style={styles.verifiedText}>Verified</Text>
